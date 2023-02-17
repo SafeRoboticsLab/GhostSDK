@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="vision60">
+
+    <xacro:arg name="use_gazebo" default="false"/> <!-- Include Sim related stuff or not -->
+    <xacro:arg name="body_centric" default="false"/> <!-- Include Sim related stuff or not -->
+    <xacro:arg name="v4" default="false"/>  <!-- 0=v3, 1=v4, selects meshes if enabled -->
+    <xacro:arg name="decimated"
+               default="false"/> <!-- if meshes enabled, 1=decimated, 0=high res -->
+    <xacro:arg name="box_viz" default="false"/> <!-- 1=stylish boxes, 0=appropriate meshes -->
+    <xacro:arg name="experimental" default="false"/>
+    <xacro:arg name="extra_xacro" default=""/>
+    <xacro:arg name="use_body_sensors" default="true"/>
+    <xacro:arg name="model_name" default="vision60"/>
+
+    <xacro:property name="namespace" value="$(arg model_name)"/>
+
+    <!-- Change here v3 or v4 -->
+    <xacro:if value="$(arg v4)">
+        <xacro:include filename="V4/vision60v4.xacro"/>
+        <xacro:if value="$(arg experimental)">
+            <xacro:include filename="V4/vision60_v4_sensorhead_opt_module.urdf.xacro"/>
+        </xacro:if>
+        <xacro:unless value="$(arg experimental)">
+            <xacro:include filename="V4/vision60_v4_t265_2pmd_sensorhead.urdf.xacro"/>
+        </xacro:unless>
+
+        <!-- Actually instantiate appropriate SH macro -->
+        <xacro:sensorhead gazebo="$(arg use_gazebo)" body_centric="$(arg body_centric)"/>
+
+        <!--  Need to connect body to sensorhead  -->
+        <xacro:if value="$(arg body_centric)">
+            <joint name="body_to_sensorhead" type="fixed">
+                <parent link="body"/>
+                <child link="front_sensor_head_link"/>
+                <origin xyz="0.4245 0.0 0.0" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:if>
+
+        <!--    If not body centric, import a that SH URDF file and make the link    -->
+        <xacro:unless value="$(arg body_centric)">
+            <joint name="body_to_sensorhead" type="fixed">
+                <parent link="front_sensor_head_link"/>
+                <child link="base_link"/>
+                <origin xyz="-0.4245 0.0 0.0" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:unless>
+    </xacro:if>
+
+    <xacro:unless value="$(arg v4)">
+        <xacro:include filename="V3/vision60v3.xacro"/>
+
+        <!--  Need to connect body to sensorhead  -->
+        <xacro:include filename="V3/vision60_v3_sensorhead.urdf.xacro"/>
+        <!-- Actually instantiate appropriate SH macro -->
+        <xacro:sensorhead body_centric="$(arg body_centric)"/>
+
+        <xacro:unless value="$(arg body_centric)">
+            <joint name="body_to_sensorhead" type="fixed">
+                <parent link="front_sensor_head_link"/>
+                <child link="base_link"/>
+                <origin xyz="-0.45 0.0 0.0" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:unless>
+
+        <xacro:if value="$(arg body_centric)">
+            <joint name="body_to_sensorhead" type="fixed">
+                <parent link="body"/>
+                <child link="front_sensor_head_link"/>
+                <origin xyz="0.45 0.0 0.0" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:if>
+    </xacro:unless>
+
+    <!--  Include more properties and macros  -->
+    <xacro:include filename="misc_constants.urdf.xacro"/>
+    <xacro:include filename="vision60_body_sensors.urdf.xacro"/>
+    <xacro:include filename="vision60_macro.urdf.xacro"/>
+
+    <!--  Create the Body Sensors  -->
+    <xacro:if value="$(arg use_body_sensors)">
+        <xacro:body_sensors v4="$(arg v4)"/>
+    </xacro:if>
+
+    <!-- Let's get the gazebo sensor objects -->
+    <xacro:if value="$(arg use_gazebo)">
+        <xacro:include filename="vision60_gazebo_sensors.urdf.xacro"/>
+        <xacro:vision60_gazebo_sensors namespace="${namespace}" v4="$(arg v4)"
+                                       use_body_sensors="$(arg use_body_sensors)"/>
+    </xacro:if>
+
+    <!-- Additional included xacro file (if requested) -->
+    <xacro:property name="extra_xacro" value="$(arg extra_xacro)"/>
+    <xacro:if value="${extra_xacro.__len__() > 0}">
+        <xacro:include filename="$(arg extra_xacro)"/>
+    </xacro:if>
+
+
+    <!--  Anddd the rest of the robot -->
+    <!--  gazebo related elements are created in the same macro -->
+    <xacro:vision60/>
+
+</robot>

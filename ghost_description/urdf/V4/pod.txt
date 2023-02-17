@@ -1,0 +1,25 @@
+Mass properties of pod assembly
+     Configuration: Default
+     Coordinate system: Coordinate System1
+Mass = 2165.96 grams
+Volume = 703562.88 cubic millimeters
+Surface area = 537643.53  square millimeters
+Center of mass: ( millimeters )
+	X = -21.50
+	Y = 2.41
+	Z = 0.70
+Principal axes of inertia and principal moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass.
+	 Ix = ( 1.00,  0.01,  0.00)   	Px = 3854478.33
+	 Iy = (-0.01,  1.00, -0.02)   	Py = 8516631.57
+	 Iz = ( 0.00,  0.02,  1.00)   	Pz = 9530532.01
+Moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 3854752.80	Lxy = 34612.07	Lxz = -9793.60
+	Lyx = 34612.07	Lyy = 8516954.91	Lyz = -24322.35
+	Lzx = -9793.60	Lzy = -24322.35	Lzz = 9529934.20
+Moments of inertia: ( grams *  square millimeters )
+Taken at the output coordinate system.
+	Ixx = 3868429.11	Ixy = -77772.27	Ixz = -42368.74
+	Iyx = -77772.27	Iyy = 9519117.16	Iyz = -20665.44
+	Izx = -42368.74	Izy = -20665.44	Izz = 10543652.81

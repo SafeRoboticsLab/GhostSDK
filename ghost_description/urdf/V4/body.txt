@@ -1,0 +1,28 @@
+Mass properties of new_frame_assem
+     Configuration: Default
+     Coordinate system: Coordinate System1
+Mass = 14493.26 grams
+Volume = 3179605.04 cubic millimeters
+Surface area = 1907892.02  square millimeters
+Center of mass: ( millimeters )
+	X = -0.68
+	Y = -0.04
+	Z = -11.48
+Principal axes of inertia and principal moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass.
+	 Ix = ( 1.00,  0.00,  0.00)   	Px = 139657371.23
+	 Iy = ( 0.00,  1.00, -0.01)   	Py = 600136819.24
+	 Iz = ( 0.00,  0.01,  1.00)   	Pz = 617638043.38
+Moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 139669106.35	Lxy = 2160000.38	Lxz = -874818.05
+	Lyx = 2160000.38	Lyy = 600127210.94	Lyz = -99866.79
+	Lzx = -874818.05	Lzy = -99866.79	Lzz = 617635916.57
+Moments of inertia: ( grams *  square millimeters )
+Taken at the output coordinate system.
+	Ixx = 141578612.68	Ixy = 2160349.69	Ixz = -762235.33
+	Iyx = 2160349.69	Iyy = 602043336.72	Iyz = -93942.25
+	Izx = -762235.33	Izy = -93942.25	Izz = 617642572.79
+One or more components have overridden mass properties:
+	battery assembly
+	V4 - Compute Box Assembly

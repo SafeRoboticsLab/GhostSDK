@@ -1,0 +1,25 @@
+Mass properties of leg assembly
+     Configuration: Default
+     Coordinate system: Coordinate System1
+Mass = 2820.64 grams
+Volume = 879673.38 cubic millimeters
+Surface area = 544376.34  square millimeters
+Center of mass: ( millimeters )
+	X = -88.55
+	Y = 0.19
+	Z = -1.32
+Principal axes of inertia and principal moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass.
+	 Ix = ( 1.00,  0.00,  0.03)   	Px = 2611892.13
+	 Iy = ( 0.00, -1.00, -0.01)   	Py = 35178546.18
+	 Iz = ( 0.03,  0.01, -1.00)   	Pz = 35335466.05
+Moments of inertia: ( grams *  square millimeters )
+Taken at the center of mass and aligned with the output coordinate system.
+	Lxx = 2634309.50	Lxy = 21117.75	Lxz = 855934.51
+	Lyx = 21117.75	Lyy = 35178545.33	Lyz = 1976.22
+	Lzx = 855934.51	Lzy = 1976.22	Lzz = 35313049.53
+Moments of inertia: ( grams *  square millimeters )
+Taken at the output coordinate system.
+	Ixx = 2639340.65	Ixy = -27206.36	Ixz = 1186001.96
+	Iyx = -27206.36	Iyy = 57301639.82	Iyz = 1255.08
+	Izx = 1186001.96	Izy = 1255.08	Izz = 57431324.03

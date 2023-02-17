@@ -1,0 +1,46 @@
+<?xml version="1.0" ?>
+<!--
+MIT License
+-->
+
+<sdf version="1.4">
+    <world name="default">
+        <!-- Target real time factor is the product of max_step_size and real_time_update_rate -->
+        <!-- Negative real_time_update_rate means that Gazebo will run as fast as possible -->
+        <!-- To increase accuracy while decreasing speed, make the step_size smaller and/or  -->
+        <!-- increase the ode solver iters   -->
+        <physics type="ode">
+            <!--  0.0003, and 200 works (0.85 rtf) but not amazing, still has some osc. -->
+            <!--  0.0003, and 300 is much better (0.65 rtf) -->
+
+            <max_step_size>0.0003</max_step_size>
+            <real_time_update_rate>-1</real_time_update_rate>
+            <ode>
+                <solver>
+                    <iters>300</iters>
+                </solver>
+            </ode>
+        </physics>
+        <include>
+            <static>true</static>
+            <uri>model://ground_plane</uri>
+        </include>
+
+        <include>
+            <static>true</static>
+            <uri>model://sun</uri>
+        </include>
+
+        <include>
+            <static>true</static>
+            <uri>model://baylands</uri>
+            <pose>0.0 0.0 0 0 0</pose>
+        </include>
+        <gui>
+            <camera name="user_camera">
+                <pose>-73 -128 5 0 1.57 0</pose>
+            </camera>
+        </gui>
+
+    </world>
+</sdf>

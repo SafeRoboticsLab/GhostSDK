@@ -1,0 +1,42 @@
+#image: ros:kinetic-perception-xenial
+
+# variables:
+#   ROS_PACKAGES_TO_INSTALL: ""
+#   USE_ROSDEP: "false"
+#   DISABLE_GCC_COLORS: "false"
+#   GLOBAL_C11: "true"
+#   GET_SOURCES_ATTEMPTS: "10"
+
+stages:
+  - build
+
+before_script:
+  - ifconfig
+  - echo $CI_JOB_ID
+  - cd $CI_PROJECT_DIR/
+  - echo $PWD                  # ghostrobotics_perception/<REPO_NAME>
+  - cd $CI_PROJECT_DIR/..
+  - echo $PWD                  # ghostrobotics_perception
+  - mkdir -p catkin_workspace
+  - rm -r catkin_workspace     # Remove existing workspace
+  - mkdir -p catkin_workspace/src
+  - cp -r $CI_PROJECT_NAME catkin_workspace/src
+  - cd $CI_PROJECT_DIR/../catkin_workspace/src
+
+after_script:
+  - ifconfig
+
+catkin_build_x86_64:
+   stage: build
+   tags: 
+    - native_x86_64
+   script: 
+    - cd $CI_PROJECT_DIR/..
+    - cd catkin_workspace
+    - echo $PWD
+    - catkin init
+    - catkin config --extend /opt/ros/melodic
+    - catkin config --cmake-args -DCMAKE_BUILD_TYPE=Release -DCUDA_NVCC_FLAGS=--expt-relaxed-constexpr -DOpenCV_DIR=/home/ghost-runner/Thirdparties/usr/local/share/OpenCV
+    - catkin clean -y -f
+    - ls src
+    - catkin build -v --summarize --force-color --limit-status-rate 10

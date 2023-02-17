@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+MIT License
+-->
+
+<launch>
+    <arg name="model_name" default="spirit40"/>
+    <arg name="spawn_location" default=""/>
+
+    <arg name="odom_frame" default="base_link"/>
+    <arg name="body_link" default="$(arg model_name)::$(arg odom_frame)"/>
+
+    <!-- Extra XACRO to add to the description and its associated args (for spawning additional models onto the robot) -->
+    <arg name="extra_xacro" default=""/>
+    <arg name="extra_xacro_args" default=""/>
+
+    <!-- control and interface args -->
+    <arg name="gui" default="true"/>
+    <arg name="broadcast_link_states" default="true"/>
+    <arg name="publish_state" default="1"/>
+    <arg name="SDK_debug_print" default="0"/>
+    <arg name="twist_topic" default="twist"/>
+
+    <!-- Output logging -->
+    <arg name="output" default="screen"/>
+
+    <!--  Interactive Markers Twist Topic  -->
+    <arg name="use_interactive" default="true"/>
+    <arg name="interactive_markers_twist_topic" if="$(eval publish_state == 1)" value="twist"/>
+    <arg name="interactive_markers_twist_topic" if="$(eval publish_state == 0)"
+         value="/mcu/command/manual_twist"/>
+
+    <!-- Use namespaced tf -->
+    <remap from="/tf" to="tf"/>
+    <remap from="/tf_static" to="tf_static"/>
+
+    <!-- Ghost Low Level SDK -->
+    <node name="GhostGazeboNode" pkg="ghost_gazebo" type="spirit_gazebo" args="" output="screen">
+        <rosparam subst_value="True">
+            publish_state: $(arg publish_state) <!-- 1 = standalone mode, 0 = with Ghost Autonomy -->
+            gazebo_topic_prefix: "/$(arg model_name)" <!-- /spirit, don't forget the leading / ! -->
+            SDK_debug_print: $(arg SDK_debug_print) <!-- whether or not to print the internal SDK debug function -->
+            gaz_body_link: $(arg body_link)
+        </rosparam>
+    </node>
+
+    <!-- Interactive markers for sending twist commands -->
+    <node name="interactive_markers_twist_server" pkg="interactive_marker_twist_server"
+          type="marker_server" args="" output="screen" if="$(arg use_interactive)">
+        <remap from="/interactive_markers_twist_server/cmd_vel"
+               to="$(arg interactive_markers_twist_topic)"/>
+        <rosparam command="load" file="$(find ghost_gazebo)/config/interactive_spirit.yaml"/>
+    </node>
+
+
+    <!-- Load all models from Xacro for single source of truth between control and simulation -->
+    <param name="robot_description"
+           command="$(find xacro)/xacro --inorder $(find ghost_description)/urdf/spirit40_gaz.urdf.xacro"/>
+
+    <!-- Spawn model in gazebo from loaded xacro -->
+    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="$(arg output)"
+          args="-urdf
+      -model $(arg model_name)
+      -param robot_description
+      $(arg spawn_location)"
+    />
+
+  <!-- Starting robot state publish which will publish tfs for legs, this uses the same urdf that gazebo is using -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+    <!-- Launch ros_controllers -->
+    <rosparam file="$(find ghost_gazebo)/launch/spirit40_control.yaml" command="load"/>
+    <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"
+          args="joint_state_controller
+            joint0_effort_controller
+            joint1_effort_controller
+            joint2_effort_controller
+            joint3_effort_controller
+            joint4_effort_controller
+            joint5_effort_controller
+            joint6_effort_controller
+            joint7_effort_controller
+            joint8_effort_controller
+            joint9_effort_controller
+            joint10_effort_controller
+            joint11_effort_controller"/>
+
+    <!-- This includes the visualisation for this model -->
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find ghost_gazebo)/rviz/docker_gazebo.rviz" if="$(arg gui)"/>
+
+    <!-- Gazebo link states to tf tree converter -->
+    <node name="link_states_broadcaster" pkg="ghost_gazebo" type="link_states_broadcaster" args=""
+          output="screen" if="$(arg broadcast_link_states)">
+        <rosparam subst_value="True">
+            map_frame: 0/map
+            body_frame: base_link
+            gaz_body_link: $(arg body_link)
+            odom_frame: $(arg odom_frame)
+        </rosparam>
+    </node>
+
+</launch>

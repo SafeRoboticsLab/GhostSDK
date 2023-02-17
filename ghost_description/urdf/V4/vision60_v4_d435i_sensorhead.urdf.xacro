@@ -1,0 +1,77 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sensorhead">
+        <xacro:macro name="sensorhead">
+		<!-- Traking frame comes from the realsesne _pose_frame which will share the link with realsense_link
+		    (parent) realsense_link -> frontsensorhead -> extrinsics_offset_link -> body (childeren) -->
+
+
+    <link name="d435_1_link"/>
+    
+    <joint name="rs_to_d435" type="fixed">
+        <parent link="d435_1_link"/>
+        <child link="realsense_link"/>
+        <origin xyz="0.0 0.0 0.0"  rpy="1.579 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+
+    <!--realsense center-->
+    <link name="realsense_link"/>
+
+    <!-- Realsense in the same location as the zed   -->
+    <joint name="realsense_link_to_front_sensor_head_link" type="fixed">
+        <parent link="realsense_link"/>
+        <child link="front_sensor_head_link"/>
+        <origin xyz="0.05115 0.0 0.0428"  rpy="0 0 0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+
+    <!-- Define front sensor head-->
+    <link name="front_sensor_head_link"/>
+
+
+    <!--forward left tof  link-->
+    <link name="left_tof_trans_link"/>
+    <joint name="front_sensor_head_to_left_tof_trans_link" type="fixed">
+        <parent link="front_sensor_head_link"/>
+        <child link="left_tof_trans_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.05392 0.09628 0.0182"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+
+    <link name="left_tof_rot_link"/>
+    <joint name="left_tof_trans_link_left_tof_rot_link" type="continuous">
+        <parent link="left_tof_trans_link"/>
+        <child link="left_tof_rot_link"/>
+        <origin rpy="1.27 0.55 -0.497418" xyz="0.0 0.0 0.0"/>
+        <axis xyz="1 0 0"/>
+    </joint>
+    <!--forward right tof link-->
+    <link name="right_tof_trans_link"/>
+
+    <joint name="front_sensor_head_to_right_tof_trans_link" type="fixed">
+        <parent link="front_sensor_head_link"/>
+        <child link="right_tof_trans_link"/>
+        <origin rpy="0.0 0.0 0.0" xyz="0.05392 -0.09628 0.0182"/> 
+        <!--<origin rpy="-0.418 0.557 -0.123" xyz="0.017 0.012 0.067"/>-->
+        <axis xyz="1 0 0"/>
+    </joint>
+
+
+    <link name="right_tof_rot_link"/>
+    <joint name="right_tof_trans_link_to_right_tof_rot_link" type="continuous">
+        <parent link="right_tof_trans_link"/>
+        <child link="right_tof_rot_link"/>
+        <!--
+        +Yaw looks the camera up
+        -->
+        <origin rpy="1.87 0.55  0.4974188" xyz="0.0 0.0 0.0"/> 
+        <!--<origin rpy="-0.418 0.557 -0.123" xyz="0.017 0.012 0.067"/>-->
+        <axis xyz="0 1 0"/>
+    </joint>
+
+
+    </xacro:macro>
+</robot>
