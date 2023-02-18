@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+MIT License
+-->
+
+<launch>
+
+    <!-- Other Args-->
+    <arg name="use_interactive" default="true"/>
+    <arg name="gui" default="true"/>
+    <arg name="publish_state" default="1"/>
+    <arg name="SDK_debug_print" default="0"/>
+    <arg name="model_name" default="vision60"/>
+
+    <!--  Sample world with just the robot and a gas station -->
+    <arg name="world_file" default="$(find ghost_gazebo)/worlds/ghost_simple.world"/>
+
+    <!-- Spawn Location -->
+    <arg name="spawn_location_foo" value="-x 0.0 -y -0.3 -z 0.25"/>
+    <arg name="spawn_location_bar" value="-x 0.0 -y 0.3 -z 0.25"/>
+
+    <!-- Launch the Vision60 world with specific physics parameters -->
+    <!-- Gazebo gets launched outside the namespace -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+      <arg name="paused" value="false"/>
+      <arg name="world_name" value="$(arg world_file)"/>
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="physics" value="ode"/>
+    </include>
+
+    <!-- SPAWN A ROBOT, SHOULD HAVE ALL ITS NON-GAZEBO TOPICS UNDER "FOO" -->
+    <include ns="foo" file="$(find ghost_gazebo)/launch/vision60_spawn.launch">
+      <arg name="model_name" value="foo"/>
+      <arg name="use_interactive" value="$(arg use_interactive)"/>
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="publish_state" value="$(arg publish_state)"/>
+      <arg name="SDK_debug_print" value="$(arg SDK_debug_print)"/>
+      <arg name="spawn_location" value="$(arg spawn_location_foo)"/>
+    </include>
+
+    <!-- SPAWN ANOTHER ROBOT, SHOULD HAVE ALL ITS NON-GAZEBO TOPICS UNDER "BAR" -->
+    <include ns="bar" file="$(find ghost_gazebo)/launch/vision60_spawn.launch">
+      <arg name="model_name" value="bar"/>
+      <arg name="use_interactive" value="$(arg use_interactive)"/>
+      <arg name="gui" value="$(arg gui)"/>
+      <arg name="publish_state" value="$(arg publish_state)"/>
+      <arg name="SDK_debug_print" value="$(arg SDK_debug_print)"/>
+      <arg name="spawn_location" value="$(arg spawn_location_bar)"/>
+    </include>
+
+
+</launch>

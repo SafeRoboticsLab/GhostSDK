@@ -1,0 +1,435 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="vision60_leg">
+
+    <xacro:include filename="V4/sw_inertia_tensors.xacro"/>
+
+    <!-- Define our leg macro -->
+    <xacro:macro name="leg"
+                 params="suffix left front hipJointName kneeJointName abductionJointName hipJointLowerLimit hipJointUpperLimit color">
+
+        <!-- Hip motor -->
+        <link name="hip${suffix}">
+            <xacro:if value="$(arg box_viz)">
+                <visual>
+                    <origin rpy="${pi/2} 0 0"
+                            xyz="${-front * (podXOffsetFromOuterEdge - 0.5 * podLength)} ${left * (dPodAxisToEdge - podWidth/2)} 0"/>
+                    <geometry>
+                        <box size="${podLength} ${podHeight} ${podWidth}"/>
+                    </geometry>
+                    <material name="${color}"/>
+                </visual>
+                <inertial>
+                    <xacro:insert_block name="podInertial"/>
+                </inertial>
+            </xacro:if>
+            <xacro:unless value="$(arg box_viz)">
+                <xacro:if value="$(arg v4)">
+                    <visual>
+                        <xacro:if value="${front == 1 and left == 1}">
+                            <origin rpy="0 0 0" xyz="0 0.0 0"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == -1 and left == 1}">
+                            <origin rpy="0 ${pi} 0" xyz="0.0 0.0 0"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == 1 and left == -1}">
+                            <origin rpy="${pi} 0 0" xyz="0.0 0 0.0"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == -1 and left == -1}">
+                            <origin rpy="${pi} ${pi} 0" xyz="0.0 0.0 0.0"/>
+                        </xacro:if>
+
+                        <geometry>
+                            <xacro:unless value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/V4_hip_transformed.stl"
+                                      scale="1 1 1"/>
+                            </xacro:unless>
+                            <xacro:if value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/decimated/V4_hip_transformed_decimated.stl"
+                                      scale="1 1 1"/>
+                            </xacro:if>
+                        </geometry>
+
+                        <material name="gray"/>
+                    </visual>
+                    <xacro:pod_inertial/>
+                </xacro:if>
+                <xacro:unless value="$(arg v4)">
+                    <visual>
+                        <xacro:if value="${front == 1 and left == 1}">
+                            <origin rpy="0 -${pi} 0" xyz="0.05 -0.073 0"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == -1 and left == 1}">
+                            <origin rpy="0 0 0" xyz="-0.05 -0.073 0"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == 1 and left == -1}">
+                            <origin rpy="${pi} ${pi} 0" xyz="0.05 0 -0.05"/>
+                        </xacro:if>
+
+                        <xacro:if value="${front == -1 and left == -1}">
+                            <origin rpy="${pi} 0 0" xyz="-0.05 0.0 0.05"/>
+                        </xacro:if>
+
+                        <xacro:if value="${left == 1}">
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/Hip_Pod_Assembly.stl"
+                                          scale="1 1 1"/>
+                                </xacro:unless>
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Hip_Pod_Assembly.stl"
+                                          scale="1 1 1"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+
+                        <xacro:if value="${left == -1}">
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/Hip_Pod_Assembly_Mirrored.stl"
+                                          scale="1 1 1"/>
+                                </xacro:unless>
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Hip_Pod_Assembly_Mirrored.stl"
+                                          scale="1 1 1"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+                        <material name="gray"/>
+                    </visual>
+                    <inertial>
+                        <xacro:insert_block name="podInertial"/>
+                    </inertial>
+                </xacro:unless>
+            </xacro:unless>
+            <collision>
+                <origin rpy="${pi/2} 0 0"
+                        xyz="${-front * (podXOffsetFromOuterEdge - 0.5 * podLength)} ${left * (dPodAxisToEdge - podWidth/2)} 0"/>
+                <geometry>
+                    <box size="${podLength} ${podHeight} ${podWidth}"/>
+                </geometry>
+            </collision>
+        </link>
+        <!-- Abduction joint. Joint names are: 8 9 10 11 -->
+        <joint name="${abductionJointName}" type="revolute">
+            <parent link="body"/>
+            <child link="hip${suffix}"/>
+            <axis xyz="1 0 0"/>
+            <origin xyz="${front * dx} ${left * dy} 0"/>
+            <limit effort="${abEffortLimit}" velocity="${abSpeedLimit}" lower="${-abKinLimit}"
+                   upper="${abKinLimit}"/>
+            <dynamics damping="0.0" friction="0.0"/>
+        </joint>
+
+        <!-- Upper leg -->
+        <link name="upper${suffix}">
+            <xacro:if value="$(arg box_viz)">
+                <visual>
+                    <origin rpy="0 0 0" xyz="-${upperLegLength/2} ${left*0.2*0.0} 0"/>
+                    <geometry>
+                        <box size="${upperLegLength} ${upperLegWidth} ${upperLegHeight}"/>
+                    </geometry>
+                    <material name="blue"/>
+                </visual>
+                <inertial>
+                    <xacro:insert_block name="upperLegInertial"/>
+                </inertial>
+            </xacro:if>
+            <xacro:unless value="$(arg box_viz)">
+                <xacro:if value="$(arg v4)">
+                    <visual>
+                        <xacro:if value="${left == 1}">
+                            <origin rpy="${pi} 0 0" xyz="0 0 0"/>
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V4/V4_Upper_leg_transformed.stl"
+                                          scale="1 1 1"/>
+                                </xacro:unless>
+
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V4/decimated/V4_Upper_leg_transformed_decimated.stl"
+                                          scale="1 1 1"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+                        <xacro:if value="${left == -1}"> <!-- Right-->
+                            <origin rpy="0 0 0" xyz="0 0 0"/>
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V4/V4_Upper_leg_mirrored_transformed.stl"
+                                          scale="1 1 1"/>
+                                </xacro:unless>
+
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V4/decimated/V4_Upper_leg_mirrored_transformed_decimated.stl"
+                                          scale="1 1 1"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+                        <material name="gray"/>
+                    </visual>
+                    <xacro:lower_leg_inertial/>
+                </xacro:if>
+
+                <xacro:unless value="$(arg v4)">
+                    <visual>
+                        <xacro:if value="${left == 1}">
+                            <origin rpy="3.14 0.1179843 0" xyz="0 0 0"/>
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/Leg_Assembly.stl"
+                                          scale="0.001 0.001 0.001"/>
+                                </xacro:unless>
+
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Leg_Assembly.stl"
+                                          scale="0.001 0.001 0.001"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+                        <xacro:if value="${left == -1}"> <!-- Right-->
+                            <origin rpy="0 0.1179843 0" xyz="0 0 0"/>
+                            <geometry>
+                                <xacro:unless value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/Leg_Assembly_Mirrored.stl"
+                                          scale="0.001 0.001 0.001"/>
+                                </xacro:unless>
+
+                                <xacro:if value="$(arg decimated)">
+                                    <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Leg_Assembly_Mirrored.stl"
+                                          scale="0.001 0.001 0.001"/>
+                                </xacro:if>
+                            </geometry>
+                        </xacro:if>
+                        <material name="gray"/>
+                    </visual>
+                    <inertial>
+                        <xacro:insert_block name="upperLegInertial"/>
+                    </inertial>
+                </xacro:unless>
+            </xacro:unless>
+            <collision>
+                <origin rpy="0 0 0" xyz="-${upperLegLength/2} ${left*0.2*0.0} 0"/>
+                <geometry>
+                    <box size="${upperLegLength} ${upperLegWidth} ${upperLegHeight}"/>
+                </geometry>
+            </collision>
+        </link>
+        <!-- Hip joint. (Motor to upper leg). Joint names are: 0 2 4 6 -->
+        <joint name="${hipJointName}" type="revolute">
+            <parent link="hip${suffix}"/>
+            <child link="upper${suffix}"/>
+            <axis xyz="0 -1 0"/>
+            <origin xyz="0 ${left * (dPodAxisToEdge + upperLegWidth/2)} 0"/> <!--  rpy="0 -0.3 0" -->
+            <limit effort="${jointEffortLimit}" velocity="${jointSpeedLimit}"
+                   lower="${hipJointLowerLimit}" upper="${hipJointUpperLimit}"/>
+            <dynamics damping="0.0" friction="0.0"/>
+        </joint>
+
+        <!-- Lower leg -->
+        <link name="lower${suffix}">
+            <xacro:if value="$(arg box_viz)">
+                <visual>
+                    <origin rpy="0 ${pi/2} 0" xyz="${lowerLegLength/2} 0 0"/>
+                    <geometry>
+                        <cylinder length="${lowerLegLength}" radius="${lowerLegRadius}"/>
+                    </geometry>
+                    <material name="black"/>
+                </visual>
+                <inertial>
+                    <xacro:insert_block name="lowerLegInertial"/>
+                </inertial>
+            </xacro:if>
+            <xacro:unless value="$(arg box_viz)">
+                <xacro:if value="$(arg v4)">
+                    <visual>
+                        <origin rpy="0 0 0" xyz="0 0.0 0"/>
+                        <geometry>
+                            <xacro:unless value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/V4_Lower_leg_transformed.stl"
+                                      scale="1 1 1"/>
+                            </xacro:unless>
+                            <xacro:if value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/decimated/V4_Lower_leg_transformed_decimated.stl"
+                                      scale="1 1 1"/>
+                            </xacro:if>
+                        </geometry>
+                        <material name="gray"/>
+                    </visual>
+                    <xacro:upper_leg_inertial/>
+                </xacro:if>
+                <xacro:unless value="$(arg v4)">
+                    <visual>
+                        <origin rpy="0 -0.3874631  0" xyz="0 0 0"/>
+                        <geometry>
+                            <xacro:unless value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V3/Lower_Leg_Assembly.stl"
+                                      scale="0.001 0.001 0.001"/>
+                            </xacro:unless>
+                            <xacro:if value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Lower_Leg_Assembly.stl"
+                                      scale="0.001 0.001 0.001"/>
+                            </xacro:if>
+                        </geometry>
+                        <material name="gray"/>
+                    </visual>
+                    <inertial>
+                        <xacro:insert_block name="lowerLegInertial"/>
+                    </inertial>
+                </xacro:unless>
+            </xacro:unless>
+            <collision>
+                <origin rpy="0 ${pi/2} 0" xyz="${lowerLegLength/2} 0 0"/>
+                <geometry>
+                    <cylinder length="${lowerLegLength}" radius="${lowerLegRadius}"/>
+                </geometry>
+            </collision>
+        </link>
+        <!-- Knee joint. Joint names are: 1 3 5 7 -->
+        <joint name="${kneeJointName}" type="revolute">
+            <parent link="upper${suffix}"/>
+            <child link="lower${suffix}"/>
+            <axis xyz="0 1 0"/>
+            <origin xyz="-${upperLegLength} 0 -${upperLegtoLowerLegZOff}"/> <!--rpy="0 0.5 0"-->
+            <limit effort="${jointEffortLimit}" velocity="${jointSpeedLimit}" lower="0"
+                   upper="${pi}"/>
+            <dynamics damping="0.0" friction="0.0"/>
+        </joint>
+
+        <!-- Toe -->
+        <link name="toe${suffix}">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <!--                     <box size="${toeRadius}*2 ${toeRadius}*2 ${toeRadius}*2"/>-->
+                    <sphere radius="0.001"/>
+                    <!--                    <sphere radius="${toeRadius}"/>-->
+                </geometry>
+                <material name="darkgray"/>
+            </visual>
+
+            <collision>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <!--                    <box size="${toeRadius}*2 ${toeRadius}*2 ${toeRadius}*2"/>-->
+                    <sphere radius="${toeRadius}"/>
+                </geometry>
+                <surface>
+                    <friction>
+                        <torsional>
+                            <coefficient>100000.0</coefficient>
+                            <surface_radius>100000</surface_radius>
+                            <use_patch_radius>false</use_patch_radius>
+                        </torsional>
+                        <ode>
+                            <mu>10000</mu>
+                            <mu2>10000</mu2>
+                        </ode>
+                    </friction>
+                    <contact>
+                        <ode>
+                            <kp>${toeStiffness}</kp>
+                            <kd>${toeDamping}</kd>
+                        </ode>
+                    </contact>
+                </surface>
+            </collision>
+
+            <inertial>
+                <xacro:insert_block name="toeInertial"/>
+            </inertial>
+        </link>
+        <joint name="jtoe${suffix}" type="fixed">
+            <parent link="lower${suffix}"/>
+            <child link="toe${suffix}"/>
+            <origin xyz="${lowerLegLength} 0 -${toeOffset}"/>
+            <dynamics damping="0.0" friction="0.0"/>
+        </joint>
+
+        <xacro:if value="$(arg use_gazebo)">
+
+            <!--  Aesthetic References   -->
+            <gazebo reference="hip${suffix}">
+                <material>Gazebo/DarkGray</material>
+            </gazebo>
+            <gazebo reference="upper${suffix}">
+                <material>Gazebo/DarkGray</material>
+            </gazebo>
+            <gazebo reference="lower${suffix}">
+                <material>Gazebo/DarkGray</material>
+            </gazebo>
+            <gazebo reference="toe${suffix}">
+                <material>Gazebo/DarkGray</material>
+                <collision>
+                    <surface>
+                        <bounce>
+                            <restitution_coefficient>0</restitution_coefficient>
+                            <threshold>1e+06</threshold>
+                        </bounce>
+                        <friction>
+                            <torsional>
+                                <coefficient>${toeSpinningFriction}</coefficient>
+                            </torsional>
+                            <ode>
+                                <mu>${toeFriction}</mu>
+                                <mu2>${toeLateralFriction}</mu2>
+                            </ode>
+                            <bullet>
+                                <rolling_friction>${toeSpinningFriction}</rolling_friction>
+                                <friction2>${toeLateralFriction}</friction2>
+                            </bullet>
+                        </friction>
+                        <contact>
+                            <bullet>
+                                <kp>${toeStiffness}</kp>
+                                <kd>${toeDamping}</kd>
+                            </bullet>
+                            <ode>
+                                <kp>${toeStiffness}</kp>
+                                <kd>${toeDamping}</kd>
+                            </ode>
+                        </contact>
+                    </surface>
+                </collision>
+            </gazebo>
+
+            <!-- Transmission elements required for Gazebo -->
+            <transmission name="transmission_${abductionJointName}">
+                <type>transmission_interface/SimpleTransmission</type>
+                <joint name="${abductionJointName}">
+                    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                </joint>
+                <actuator name="motor_${abductionJointName}">
+                    <hardwareInterface>EffortJointInterface</hardwareInterface>
+                    <mechanicalReduction>1</mechanicalReduction>
+                </actuator>
+            </transmission>
+            <transmission name="transmission_${hipJointName}">
+                <type>transmission_interface/SimpleTransmission</type>
+                <joint name="${hipJointName}">
+                    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                </joint>
+                <actuator name="motor_${hipJointName}">
+                    <hardwareInterface>EffortJointInterface</hardwareInterface>
+                    <mechanicalReduction>1</mechanicalReduction>
+                </actuator>
+            </transmission>
+            <transmission name="transmission_${kneeJointName}">
+                <type>transmission_interface/SimpleTransmission</type>
+                <joint name="${kneeJointName}">
+                    <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+                </joint>
+                <actuator name="motor_${kneeJointName}">
+                    <hardwareInterface>EffortJointInterface</hardwareInterface>
+                    <mechanicalReduction>1</mechanicalReduction>
+                </actuator>
+            </transmission>
+        </xacro:if>
+
+    </xacro:macro>
+</robot>

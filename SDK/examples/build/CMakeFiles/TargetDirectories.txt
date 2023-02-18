@@ -1,0 +1,17 @@
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/rebuild_cache.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/edit_cache.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestMAVLink_mb_VISION_0x40.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/FirstStep_mb_VISION_0x40.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/FirstStep_mb_SPIRIT_0x12.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/LimbControl_mb_VISION_0x37.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestMAVLink_mb_SPIRIT_0x12.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestSetJointPosition_mb_VISION_0x40.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/SpinMotor_mb_VISION_0x40.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/LimbControl_mb_SPIRIT_0x12.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestSetJointPosition_mb_SPIRIT_0x12.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/SpinMotor_mb_VISION_0x37.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/FirstStep_mb_VISION_0x37.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/LimbControl_mb_VISION_0x40.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/SpinMotor_mb_SPIRIT_0x12.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestSetJointPosition_mb_VISION_0x37.dir
+/home/buzi/Desktop/Princeton/RESEARCH/SAFE/HARDWARE/SPIRIT/GhostSDK_0.12.2/SDK/examples/build/CMakeFiles/TestMAVLink_mb_VISION_0x37.dir

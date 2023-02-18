@@ -1,0 +1,97 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="tof_sensor">
+
+    <!--  pmd properties  -->
+    <xacro:property name="pmd_horiz_fov" value="1.08"/>
+    <xacro:property name="pmd_min_range" value="0.1"/>
+    <xacro:property name="pmd_max_range" value="2.0"/>
+    <xacro:property name="pmd_horiz_res" value="224"/>
+    <xacro:property name="pmd_vert_res" value="171"/>
+    <xacro:property name="pmd_update_rate" value="15"/>
+
+    <!--  adi properties  -->
+    <xacro:property name="adi_horiz_fov" value="1.57"/>
+    <xacro:property name="adi_min_range" value="0.001"/>
+    <xacro:property name="adi_max_range" value="3.0"/>
+    <xacro:property name="adi_horiz_res" value="620"/>
+    <xacro:property name="adi_vert_res" value="480"/>
+    <xacro:property name="adi_update_rate" value="30"/>
+
+    <!--  Generic Tof xacro  -->
+    <xacro:macro name="tof" params="name horiz_fov min_range max_range horiz_res vert_res update_rate namespace">
+        <gazebo reference="${name}_link">
+            <sensor name="${name}" type="depth">
+                <update_rate>${update_rate}</update_rate>
+                <camera>
+                    <horizontal_fov>${horiz_fov}</horizontal_fov>
+                    <image>
+                        <width>${horiz_res}</width>
+                        <height>${vert_res}</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>${min_range}</near>
+                        <far>${max_range}</far>
+                    </clip>
+                </camera>
+                <plugin name="${name}_controller" filename="libgazebo_ros_openni_kinect.so">
+                    <baseline>0.2</baseline>
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>${update_rate}</updateRate>
+                    <cameraName>${name}</cameraName>
+                    <robotNamespace>${namespace}</robotNamespace>
+
+                    <imageTopicName>stream/1/color/image_rect_raw</imageTopicName>
+                    <cameraInfoTopicName>stream/1/color/camera_info</cameraInfoTopicName>
+                    <depthImageTopicName>stream/1/depth/image_rect_raw
+                    </depthImageTopicName>
+                    <depthImageCameraInfoTopicName>stream/1/depth/camera_info
+                    </depthImageCameraInfoTopicName>
+
+                    <pointCloudTopicName>stream/1/cloud</pointCloudTopicName>
+                    <frameName>/${name}_optical_link</frameName>
+                    <pointCloudCutoff>${min_range}</pointCloudCutoff>
+                    <pointCloudCutoffMax>${max_range}</pointCloudCutoffMax>
+                    <distortionK1>0.00000001</distortionK1>
+                    <distortionK2>0.00000001</distortionK2>
+                    <distortionK3>0.00000001</distortionK3>
+                    <distortionT1>0.00000001</distortionT1>
+                    <distortionT2>0.00000001</distortionT2>
+                    <CxPrime>0</CxPrime>
+                    <Cx>0</Cx>
+                    <Cy>0</Cy>
+                    <focalLength>0</focalLength>
+                    <hackBaseline>0</hackBaseline>
+                </plugin>
+            </sensor>
+        </gazebo>
+    </xacro:macro>
+
+    <!--  PMD Specifically  -->
+    <xacro:macro name="pmd" params="name namespace">
+        <xacro:tof horiz_fov="${pmd_horiz_fov}"
+                   min_range="${pmd_min_range}"
+                   max_range="${pmd_max_range}"
+                   horiz_res="${pmd_horiz_res}"
+                   vert_res="${pmd_vert_res}"
+                   update_rate="${pmd_update_rate}"
+                   name="${name}"
+                   namespace="${namespace}"
+        />
+    </xacro:macro>
+
+    <!--  ADI specifically  -->
+    <xacro:macro name="adi" params="name namespace">
+        <xacro:tof horiz_fov="${adi_horiz_fov}"
+                   min_range="${adi_min_range}"
+                   max_range="${adi_max_range}"
+                   horiz_res="${adi_horiz_res}"
+                   vert_res="${adi_vert_res}"
+                   update_rate="${adi_update_rate}"
+                   name="${name}"
+                   namespace="${namespace}"
+        />
+    </xacro:macro>
+
+</robot>

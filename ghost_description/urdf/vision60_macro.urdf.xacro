@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="vision60">
+
+    <xacro:include filename="V4/sw_inertia_tensors.xacro"/>
+
+    <xacro:macro name="vision60">
+
+        <!-- Body -->
+        <link name="body">
+            <xacro:if value="$(arg box_viz)">
+                <visual>
+                    <origin rpy="0 0 0" xyz="0 0 0"/>
+                    <geometry>
+                        <box size="${bodyLength} ${bodyWidth} ${bodyHeight}"/>
+                    </geometry>
+                    <material name="gray"/>
+                </visual>
+                <inertial>
+                    <xacro:insert_block name="bodyInertial"/>
+                </inertial>
+            </xacro:if>
+            <xacro:unless value="$(arg box_viz)">
+
+                <xacro:if value="$(arg v4)">
+                    <visual>
+                        <origin rpy="0 0 0" xyz="0 0 0"/>
+                        <geometry>
+                            <xacro:unless value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/V4_frame_transformed.stl"
+                                      scale="1 1 1"/>
+<!--                                <mesh filename="package://ghost_description/meshes/Vision60_V4/new_frame_cable_standin_wider.STL"-->
+<!--                                      scale="1 1 1"/>-->
+<!--                                <mesh filename="package://ghost_description/meshes/Vision60_V4/new_frame_transformed.stl"-->
+<!--                                      scale="1 1 1"/>-->
+                            </xacro:unless>
+                            <xacro:if value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V4/decimated/V4_frame_transformed_decimated.stl"
+                                      scale="1 1 1"/>
+                            </xacro:if>
+                        </geometry>
+                        <material name="gray"/>
+                    </visual>
+                    <xacro:body_inertial/>
+                </xacro:if>
+
+                <xacro:unless value="$(arg v4)">
+                    <visual>
+                        <origin rpy="0 0 0" xyz="0 0 -0.1"/>
+                        <geometry>
+                            <xacro:unless value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V3/Frame.STL"
+                                      scale="1 1 1"/>
+                            </xacro:unless>
+                            <xacro:if value="$(arg decimated)">
+                                <mesh filename="package://ghost_description/meshes/Vision60_V3/decimated/Frame.STL"
+                                      scale="1 1 1"/>
+                            </xacro:if>
+                        </geometry>
+                        <material name="gray"/>
+                    </visual>
+                    <inertial>
+                        <xacro:insert_block name="bodyInertial"/>
+                    </inertial>
+                </xacro:unless>
+            </xacro:unless>
+            <collision>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <box size="${bodyLength} ${bodyWidth} ${bodyHeight}"/>
+                </geometry>
+            </collision>
+        </link>
+        <link name="base_link"/>
+        <joint name="base_link_to_body" type="fixed">
+            <parent link="base_link"/>
+            <child link="body"/>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <!-- Our four legs -->
+        <xacro:include filename="vision60_leg_macro.urdf.xacro"/>
+
+        <xacro:leg suffix="0" hipJointName="0" kneeJointName="1" abductionJointName="8" front="1"
+                   left="1" hipJointLowerLimit="${-2*pi}" hipJointUpperLimit="${2*pi}" color="red"/>
+        <xacro:leg suffix="1" hipJointName="2" kneeJointName="3" abductionJointName="9" front="-1"
+                   left="1" hipJointLowerLimit="${-2*pi}" hipJointUpperLimit="${2*pi}"
+                   color="purple"/>
+        <xacro:leg suffix="2" hipJointName="4" kneeJointName="5" abductionJointName="10" front="1"
+                   left="-1" hipJointLowerLimit="${-2*pi}" hipJointUpperLimit="${2*pi}"
+                   color="purple"/>
+        <xacro:leg suffix="3" hipJointName="6" kneeJointName="7" abductionJointName="11" front="-1"
+                   left="-1" hipJointLowerLimit="${-2*pi}" hipJointUpperLimit="${2*pi}"
+                   color="purple"/>
+
+        <xacro:if value="$(arg use_gazebo)">
+            <gazebo reference="body">
+                <material>Gazebo/DarkGray</material>
+            </gazebo>
+            <!-- Add ros_control plugin -->
+            <gazebo>
+                <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so"/>
+            </gazebo>
+        </xacro:if>
+    </xacro:macro>
+</robot>

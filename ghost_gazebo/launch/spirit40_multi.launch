@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+MIT License
+-->
+
+<launch>
+    <arg name="use_interactive" default="false"/>
+    <arg name="gui" default="true"/>
+    <arg name="publish_state" default="1"/>
+    <arg name="SDK_debug_print" default="0"/>
+    <arg name="model_name" default="spirit40"/>
+
+    <arg name="odom_frame" default="base_link"/>
+    <arg name="body_link" default="$(arg model_name)::$(arg odom_frame)"/>
+
+    <arg name="world_file" value="$(find ghost_gazebo)/worlds/ghost_simple.world"/>
+
+    <!--  Spawn Location  -->
+    <arg name="spawn_location_foo" value="-x 0.0 -y -0.3 -z 0.25"/>
+    <arg name="spawn_location_bar" value="-x 0.0 -y 0.3 -z 0.25"/>
+
+    <!-- Launch the Vision60 world with specific physics parameters -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="paused" value="false"/>
+        <arg name="world_name" value="$(arg world_file)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="physics" value="ode"/>
+    </include>
+
+    <!-- SPAWN AN SPIRIT ROBOTS -->
+    <include ns="foo" file="$(find ghost_gazebo)/launch/spirit40_spawn.launch">
+        <arg name="model_name" value="foo"/>
+        <arg name="use_interactive" value="$(arg use_interactive)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="publish_state" value="$(arg publish_state)"/>
+        <arg name="SDK_debug_print" value="$(arg SDK_debug_print)"/>
+        <arg name="spawn_location" value="$(arg spawn_location_foo)"/>
+        <arg name="odom_frame" value="$(arg odom_frame)"/>
+    </include>
+
+    <include ns="bar" file="$(find ghost_gazebo)/launch/spirit40_spawn.launch">
+        <arg name="model_name" value="bar"/>
+        <arg name="use_interactive" value="$(arg use_interactive)"/>
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="publish_state" value="$(arg publish_state)"/>
+        <arg name="SDK_debug_print" value="$(arg SDK_debug_print)"/>
+        <arg name="spawn_location" value="$(arg spawn_location_bar)"/>
+        <arg name="odom_frame" value="$(arg odom_frame)"/>
+    </include>
+
+</launch>

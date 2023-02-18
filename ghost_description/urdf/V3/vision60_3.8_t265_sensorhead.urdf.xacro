@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sensorhead">
+        <xacro:macro name="sensorhead">
+		<!-- Traking frame comes from the realsesne _pose_frame which will share the link with realsense_link
+                    (parent) realsense_link -> front_sensor_head -> extrinsics_offset_link -> body (childeren) -->
+
+        <!-- Define front sensor head-->
+        <link name="front_sensor_head_link"/>
+
+        <link name="rst265_link"/>
+	<joint name="rs_to_t265" type="fixed">
+          <parent link="rst265_link"/>
+	  <child link="realsense_link"/>
+	  <origin xyz="0.0 0.0 0.0"  rpy="0 0 0"/> <!-- -0.32-->
+          <axis xyz="1 0 0"/>
+	</joint>
+
+
+        <!--realsense center-->
+        <link name="realsense_link"/>
+
+         <!-- Realsense pitched down, subt robot configuration   -->
+         <joint name="front_sensor_head_to_realsense_link" type="fixed">
+            <parent link="realsense_link"/>
+            <child link="front_sensor_head_link"/>
+            <origin rpy="0.0 0.0 0.0" xyz="0.02 0.0 0.05"/> <!-- pitch should 0.3 but basalt takds this into account -->
+            <axis xyz="0 0 1"/>
+        </joint>
+
+        <!--forward left tof  link-->
+        <link name="left_tof_link"/>
+        <joint name="front_sensor_head_to_left_tof_link" type="fixed">
+            <parent link="front_sensor_head_link"/>
+            <child link="left_tof_link"/>
+	    <origin rpy="1.57079 0.5235 -0.349" xyz="-0.01493 0.033445  -0.00212"/> 
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <!--forward right tof link-->
+        <link name="right_tof_link"/>
+        <joint name="fwd_left_tof_link_to_right_tof_link" type="fixed">
+            <parent link="left_tof_link"/>
+            <child link="right_tof_link"/>
+            <!--<origin rpy="-0.34 0.5735 -0.13" xyz="0.01961 0.01132 0.06242"/>-->
+            <origin rpy="-0.418 0.557 -0.123" xyz="0.017 0.012 0.067"/>
+            <axis xyz="0 0 1"/>
+        </joint>
+
+
+        <!--zed center -->
+        <link name="zed_camera_center_link"/>
+        <joint name="fwd_camera_link_to_zed_center" type="fixed">
+            <parent link="front_sensor_head_link"/>
+            <child link="zed_camera_center_link"/>
+	    <origin xyz="-0.031 0.0 0.0456" rpy="0 0 0" />
+            <axis xyz="1 0 0"/>
+        </joint>
+
+    </xacro:macro>
+</robot>

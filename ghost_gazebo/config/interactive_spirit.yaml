@@ -1,0 +1,12 @@
+link_name: body
+robot_name: spirit40
+marker_size_scale: 0.5
+linear_scale:
+  x: 1
+  y: 1
+max_positive_linear_velocity:
+  x: 0.75
+  y: 0.4
+max_negative_linear_velocity:
+  x: -0.5
+  y: -0.4

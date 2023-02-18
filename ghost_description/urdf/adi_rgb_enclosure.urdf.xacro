@@ -1,0 +1,248 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="tof_sensor">
+
+    <!--  properties  -->
+    <xacro:property name="deg_to_rad" value="0.0174533"/>
+    <xacro:property name="tof_pitch" value="30.0"/>
+    <xacro:property name="tof_yaw" value="-15.0"/>
+    <xacro:property name="tof_roll" value="90"/>
+
+    <xacro:include filename="tof_sensor.urdf.xacro"/>
+
+    <xacro:macro name="tof_rgb_combo" params="name left">
+        <!-- Enclosure link is on the back plane of the enclosure, on the top middle corner of the tof tilt mount-->
+        <link name="${name}_enclosure_link">
+<!--            <visual>-->
+<!--                <origin rpy="0 0 0" xyz="0 0 0"/>-->
+<!--                <geometry>-->
+<!--                    <xacro:if value="${left == -1}">-->
+<!--                        <mesh filename="package://ghost_description/meshes/Vision60_V4/tof_rgb_assem_right.STL"-->
+<!--                              scale="1 1 1"/>-->
+<!--                    </xacro:if>-->
+<!--                    <xacro:if value="${left == 1}">-->
+<!--                        <mesh filename="package://ghost_description/meshes/Vision60_V4/tof_rgb_assem_left.STL"-->
+<!--                              scale="1 1 1"/>-->
+<!--                    </xacro:if>-->
+<!--                </geometry>-->
+<!--                <material name="gray"/>-->
+<!--            </visual>-->
+        </link>
+        <link name="${name}_rgb_link">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://ghost_description/meshes/Vision60_V4/rgb_cam.STL" scale="1 1 1"/>
+                </geometry>
+            </visual>
+        </link>
+        <link name="${name}_tof_link">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://ghost_description/meshes/Vision60_V4/adi_tof.STL" scale="1 1 1"/>
+                </geometry>
+            </visual>
+        </link>
+
+        <joint name="${name}_enclosure_from_fsh" type="fixed">
+            <parent link="front_sensor_head_link"/>
+            <child link="${name}_enclosure_link"/>
+<!--            <origin xyz="0 ${0.0975*left} 0.052" rpy="0 0 0"/> &lt;!&ndash; Center Position &ndash;&gt;-->
+<!--            <origin xyz="0 ${0.08*left} 0.08" rpy="0 0 0"/> &lt;!&ndash; Top Position&ndash;&gt;-->
+            <origin xyz="0 ${0.095*left} 0.03" rpy="0 0 0"/> <!-- Center Position level -->
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <joint name="${name}_enclosure_to_rgb" type="fixed">
+            <parent link="${name}_enclosure_link"/>
+            <child link="${name}_rgb_link"/>
+            <origin xyz="0.05024 ${left*-0.03} 0.03" rpy="0 0 0"/> <!-- Above the Tof -->
+<!--            <origin xyz="0.05024 ${left*0.0125} -0.024" rpy="0 0 0"/>-->
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <xacro:adi name="${name}_tof" namespace="${namespace}"/>
+
+        <joint name="${name}_enclosure_to_tof" type="fixed">
+            <parent link="${name}_enclosure_link"/>
+            <child link="${name}_tof_link"/>
+            <origin xyz="0.0448 ${left * -0.03} -0.024" rpy="${left*tof_roll * deg_to_rad} ${tof_pitch * deg_to_rad} ${left * tof_yaw * deg_to_rad}"/>
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <link name="${name}_tof_optical_link"/>
+        <joint name="${name}_tof_sensor_to_opt" type="fixed">
+            <parent link="${name}_tof_link"/>
+            <child link="${name}_tof_optical_link"/>
+            <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <gazebo reference="${name}_rgb_link">
+            <sensor type="camera" name="${name}_rgb">
+                <update_rate>30.0</update_rate>
+                <camera name="head">
+                    <horizontal_fov>2.304</horizontal_fov>
+                    <image>
+                        <width>1280</width>
+                        <height>720</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>300</far>
+                    </clip>
+                    <noise>
+                        <type>gaussian</type>
+                        <!-- Noise is sampled independently per pixel on each frame.
+                             That pixel's noise value is added to each of its color
+                             channels, which at that point lie in the range [0,1]. -->
+                        <mean>0.0</mean>
+                        <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+                <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>0.0</updateRate>
+                    <cameraName>${name}_rgb</cameraName>
+                    <imageTopicName>image_raw</imageTopicName>
+                    <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+                    <frameName>${name}_rgb_link</frameName>
+                    <hackBaseline>0.07</hackBaseline>
+                    <distortionK1>0.0</distortionK1>
+                    <distortionK2>0.0</distortionK2>
+                    <distortionK3>0.0</distortionK3>
+                    <distortionT1>0.0</distortionT1>
+                    <distortionT2>0.0</distortionT2>
+                </plugin>
+            </sensor>
+        </gazebo>
+
+    </xacro:macro>
+
+    <xacro:macro name="body_tof_rgb_combo" params="name left rear">
+        <!-- Enclosure link is on the back plane of the enclosure, on the top middle corner of the tof tilt mount-->
+        <link name="${name}_enclosure_link">
+<!--            <visual>-->
+<!--                <origin rpy="0 0 0" xyz="0 0 0"/>-->
+<!--                <geometry>-->
+<!--                    <xacro:if value="${left == -1}">-->
+<!--                        <mesh filename="package://ghost_description/meshes/Vision60_V4/full_body_enclosure_right.STL"-->
+<!--                              scale="1 1 1"/>-->
+<!--                    </xacro:if>-->
+<!--                    <xacro:if value="${left == 1}">-->
+<!--                        <mesh filename="package://ghost_description/meshes/Vision60_V4/full_body_enclosure_left.STL"-->
+<!--                              scale="1 1 1"/>-->
+<!--                    </xacro:if>-->
+<!--                </geometry>-->
+<!--                <material name="gray"/>-->
+<!--            </visual>-->
+        </link>
+        <link name="${name}_rgb_link">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://ghost_description/meshes/Vision60_V4/rgb_cam.STL" scale="1 1 1"/>
+                </geometry>
+            </visual>
+        </link>
+        <link name="${name}_tof_link">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <mesh filename="package://ghost_description/meshes/Vision60_V4/adi_tof.STL" scale="1 1 1"/>
+                </geometry>
+            </visual>
+        </link>
+
+        <xacro:unless value="${rear}">
+            <joint name="${name}_enclosure_from_fsh" type="fixed">
+                <parent link="body"/>
+                <child link="${name}_enclosure_link"/>
+                <origin xyz="-0.082 ${left*0.1} 0.07" rpy="0 0 ${left*1.57}"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+            <joint name="${name}_enclosure_to_rgb" type="fixed">
+                <parent link="${name}_enclosure_link"/>
+                <child link="${name}_rgb_link"/>
+                <origin xyz="0.02545 ${left*0.0266} -0.0247" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:unless>
+
+        <xacro:if value="${rear}">
+            <joint name="${name}_enclosure_from_fsh" type="fixed">
+                <parent link="body"/>
+                <child link="${name}_enclosure_link"/>
+                <origin xyz="-0.4245 ${left*0.075} 0.025" rpy="0 0 ${left*3.14}"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+            <joint name="${name}_enclosure_to_rgb" type="fixed">
+                <parent link="${name}_enclosure_link"/>
+                <child link="${name}_rgb_link"/>
+                <origin xyz="0.02545 ${left*-0.0162} 0.0175" rpy="0 0 0"/>
+                <axis xyz="1 0 0"/>
+            </joint>
+        </xacro:if>
+
+        <xacro:adi name="${name}_tof" namespace="${namespace}"/>
+
+        <joint name="${name}_enclosure_to_tof" type="fixed">
+            <parent link="${name}_enclosure_link"/>
+            <child link="${name}_tof_link"/>
+            <origin xyz="0.02545 ${left * -0.0162} -0.0247" rpy="${left*0 * deg_to_rad} ${20 * deg_to_rad} ${left * 0 * deg_to_rad}"/>
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <link name="${name}_tof_optical_link"/>
+        <joint name="${name}_tof_sensor_to_opt" type="fixed">
+            <parent link="${name}_tof_link"/>
+            <child link="${name}_tof_optical_link"/>
+            <origin xyz="0 0 0" rpy="-1.5708 0 -1.5708"/>
+            <axis xyz="1 0 0"/>
+        </joint>
+
+        <gazebo reference="${name}_rgb_link">
+            <sensor type="camera" name="${name}_rgb">
+                <update_rate>30.0</update_rate>
+                <camera name="head">
+                    <horizontal_fov>2.304</horizontal_fov>
+                    <image>
+                        <width>1280</width>
+                        <height>720</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>300</far>
+                    </clip>
+                    <noise>
+                        <type>gaussian</type>
+                        <!-- Noise is sampled independently per pixel on each frame.
+                             That pixel's noise value is added to each of its color
+                             channels, which at that point lie in the range [0,1]. -->
+                        <mean>0.0</mean>
+                        <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+                <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+                    <alwaysOn>true</alwaysOn>
+                    <updateRate>0.0</updateRate>
+                    <cameraName>${name}_rgb</cameraName>
+                    <imageTopicName>image_raw</imageTopicName>
+                    <cameraInfoTopicName>camera_info</cameraInfoTopicName>
+                    <frameName>${name}_rgb_link</frameName>
+                    <hackBaseline>0.07</hackBaseline>
+                    <distortionK1>0.0</distortionK1>
+                    <distortionK2>0.0</distortionK2>
+                    <distortionK3>0.0</distortionK3>
+                    <distortionT1>0.0</distortionT1>
+                    <distortionT2>0.0</distortionT2>
+                </plugin>
+            </sensor>
+        </gazebo>
+
+    </xacro:macro>
+
+</robot>
