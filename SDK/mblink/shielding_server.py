@@ -8,6 +8,7 @@ from safety_enforcer import SafetyEnforcer
 import os
 import sys
 import select
+import pickle
 
 safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.04)
 
@@ -192,6 +193,12 @@ except KeyboardInterrupt:
 state = np.zeros(36)
 prev_serial_state_time = time.time()
 
+timestamp = []
+state_array = []
+action_array = []
+shielding_status = []
+command_status = []
+
 while True:
     try:
         ready = select.select([clients["control"]], [], [], 0.01)
@@ -321,8 +328,22 @@ while True:
             cur_time = time.time()
 
         limbCmd(action)
+        timestamp.append(cur_time)
+        state_array.append(state)
+        action_array.append(action)
+        shielding_status.append(safetyEnforcer.is_shielded)
+        command_status.append(data)
 
     except KeyboardInterrupt:
         sittingDown()
         mb.rxstop()
+        
+        with open('data-{}-{}.pkl'.format(int(time.time()), safetyEnforcer.epsilon), 'wb') as file:
+            pickle.dump({
+                "time": timestamp,
+                "state": state_array,
+                "action": action_array,
+                "is_shielded": shielding_status,
+                "command": command_status
+            }, file)
         break

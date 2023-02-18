@@ -46,6 +46,8 @@ class SafetyEnforcer:
         self.policy.restore(None, model_path, load_dict=load_dict)
         print("-> Done")
 
+        self.is_shielded = None
+
     def get_action(self, state:np.ndarray, action:np.ndarray) -> np.ndarray:
         s_dstb = np.concatenate((state, action), axis=0)
         dstb = self.policy.dstb(s_dstb)
