@@ -10,7 +10,7 @@ import sys
 import select
 import pickle
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.03)
+safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.02)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
