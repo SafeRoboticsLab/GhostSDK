@@ -67,8 +67,8 @@ while ser.isOpen():
         data = ser.readline()
         state_array = np.array(data.decode('utf-8').replace('\r\n', '').split(",")).astype(np.float32)
         if len(state_array) == 21:
-            state_array[15:18] = state_array[15:18] / (time.time() - last_time)
-            state_array = np.concatenate((state_array, (state_array[3:15] - old_joint_pos) / (time.time() - last_time)), axis=0)
+            state_array[15:18] = state_array[15:18] * (time.time() - last_time) # accel to vel
+            state_array = np.concatenate((state_array, (state_array[3:15] - old_joint_pos) / (time.time() - last_time)), axis=0) # joint vel
             old_joint_pos = state_array[3:15]
 
             serial_data = bytearray(struct.pack(
