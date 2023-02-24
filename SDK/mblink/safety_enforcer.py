@@ -47,6 +47,7 @@ class SafetyEnforcer:
         print("-> Done")
 
         self.is_shielded = None
+        self.prev_q = None
 
     def get_action(self, state:np.ndarray, action:np.ndarray) -> np.ndarray:
         s_dstb = np.concatenate((state, action), axis=0)
@@ -64,6 +65,8 @@ class SafetyEnforcer:
         else:
             self.is_shielded = False
         
+        self.prev_q = critic_q.reshape(-1)[0]
+
         return action
 
     def get_q(self, state:np.ndarray, action:np.ndarray):

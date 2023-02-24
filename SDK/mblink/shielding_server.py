@@ -9,8 +9,9 @@ import os
 import sys
 import select
 import pickle
+timestr = time.strftime("%Y%m%d%H%M%S")
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.02)
+safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.03)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -197,6 +198,7 @@ state_array = []
 action_array = []
 shielding_status = []
 command_status = []
+q_array = []
 
 received_vicon = False
 received_serial = False
@@ -343,17 +345,19 @@ while True:
         action_array.append(action)
         shielding_status.append(safetyEnforcer.is_shielded)
         command_status.append(data)
+        q_array.append(safetyEnforcer.prev_q)
 
     except KeyboardInterrupt:
         sittingDown()
         mb.rxstop()
         
-        with open('data-{}-{}.pkl'.format(int(time.time()), safetyEnforcer.epsilon), 'wb') as file:
+        with open('data-{}-{}.pkl'.format(timestr, safetyEnforcer.epsilon), 'wb') as file:
             pickle.dump({
                 "time": timestamp,
                 "state": state_array,
                 "action": action_array,
                 "is_shielded": shielding_status,
-                "command": command_status
+                "command": command_status,
+                "q_array": q_array
             }, file)
         break
