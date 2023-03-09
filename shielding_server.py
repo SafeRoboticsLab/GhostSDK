@@ -11,7 +11,7 @@ import select
 import pickle
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.0)
+safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.03)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -275,7 +275,7 @@ while True:
                 elif data == "8s":
                     if received_serial and received_vicon:
                         spirit_joint_pos = state[12:24]
-                        # print(spirit_joint_pos)
+                        print(spirit_joint_pos)
 
                         action = controller_forward.get_action()
                         ctrl = action - spirit_joint_pos
@@ -284,12 +284,12 @@ while True:
 
                         # clipped_action = []
                             
-                        # abduction_increment_max = 0.5
-                        # abduction_increment_min = -0.5
-                        # hip_increment_max = 0.5
-                        # hip_increment_min = -0.5
-                        # knee_increment_max = 0.5
-                        # knee_increment_min = -0.5
+                        # abduction_increment_max = 2.0
+                        # abduction_increment_min = -2.0
+                        # hip_increment_max = 2.0
+                        # hip_increment_min = -2.0
+                        # knee_increment_max = 2.0
+                        # knee_increment_min = -2.0
                         
                         # abduction_min = -0.5
                         # abduction_max = 0.5
