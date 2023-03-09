@@ -22,6 +22,7 @@ class SafetyEnforcer:
         self.epsilon = epsilon
         self.imaginary_horizon = imaginary_horizon
 
+        # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
         training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
         model_path = os.path.join(parent_dir, training_dir, "model")
         model_config_path = os.path.join(parent_dir, training_dir, "config.yaml")
@@ -35,6 +36,10 @@ class SafetyEnforcer:
         config_arch = config['arch']
         config_update = config['update']
 
+        # load_dict = {
+        #     "ctrl": 3_980_000,
+        #     "dstb": 8_000_001
+        # }
         load_dict = {
             "ctrl": 3_920_000,
             "dstb": 5_480_000

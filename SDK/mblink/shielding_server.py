@@ -243,10 +243,10 @@ while True:
                 state[9:12] = np.array(serial_data[18:21]).astype(np.float)
                 
                 # map joint position
-                state[12:24] = np.array(serial_data[3:15]).astype(np.float).reshape((4, 3))[:, [1, 0, 2]].reshape(-1)
+                state[12:24] = np.array(serial_data[3:15]).astype(np.float).reshape((4, 3))[:, [2, 0, 1]].reshape(-1)
                 
                 # map joint velocity
-                state[24:36] = np.array(serial_data[21:33]).astype(np.float).reshape((4, 3))[:, [1, 0, 2]].reshape(-1)
+                state[24:36] = np.array(serial_data[21:33]).astype(np.float).reshape((4, 3))[:, [2, 0, 1]].reshape(-1)
                 
                 received_serial = True
             except Exception as e:
@@ -275,6 +275,7 @@ while True:
                 elif data == "8s":
                     if received_serial and received_vicon:
                         spirit_joint_pos = state[12:24]
+                        print(spirit_joint_pos)
 
                         action = controller_forward.get_action()
                         ctrl = action - spirit_joint_pos
