@@ -25,7 +25,8 @@ class SafetyEnforcer:
         # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
         # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
         # training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
-        training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
+        # training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
+        training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror_05"
 
         model_path = os.path.join(parent_dir, training_dir, "model")
         model_config_path = os.path.join(parent_dir, training_dir, "config.yaml")
@@ -40,26 +41,33 @@ class SafetyEnforcer:
         config_update = config['update']
 
         # isaacs pretrained
-	# load_dict = {
+        # load_dict = {
         #     "ctrl": 3_980_000,
         #     "dstb": 8_000_001
         # }
 
         # isaacs no pretrained
-	# load_dict = {
-        #   "ctrl": 3_920_000,
-        #   "dstb": 5_480_000
-        #}
+        # load_dict = {
+        #     "ctrl": 3_920_000,
+        #     "dstb": 5_480_000
+        # }
         
         # old reach-avoid
-	# load_dict = {
-        #    "ctrl": 4_100_000,
-        #    "dstb": 7_520_000
+        # load_dict = {
+        #     "ctrl": 4_100_000,
+        #     "dstb": 7_520_000
         # }
 
+        # new reach-avoid (chiara)
+        # load_dict = {
+        #     "ctrl": 5_900_000,
+        #     "dstb": 8_000_001
+        # }
+
+        # mirrored dstb reach-avoid
         load_dict = {
-             "ctrl": 5_900_000,
-             "dstb": 8_000_001
+            "ctrl": 4_700_000,
+            "dstb": 8_000_001
         }
 
         self.policy = SAC_adv(config_update, config_arch)
