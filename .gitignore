@@ -52,3 +52,4 @@ docs/_build/
 *.sh
 *.pkl
 *.csv
+*.pyc

@@ -23,7 +23,10 @@ class SafetyEnforcer:
         self.imaginary_horizon = imaginary_horizon
 
         # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
-        training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
+        # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
+        # training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
+        training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
+
         model_path = os.path.join(parent_dir, training_dir, "model")
         model_config_path = os.path.join(parent_dir, training_dir, "config.yaml")
 
@@ -36,13 +39,27 @@ class SafetyEnforcer:
         config_arch = config['arch']
         config_update = config['update']
 
-        # load_dict = {
+        # isaacs pretrained
+	# load_dict = {
         #     "ctrl": 3_980_000,
         #     "dstb": 8_000_001
         # }
+
+        # isaacs no pretrained
+	# load_dict = {
+        #   "ctrl": 3_920_000,
+        #   "dstb": 5_480_000
+        #}
+        
+        # old reach-avoid
+	# load_dict = {
+        #    "ctrl": 4_100_000,
+        #    "dstb": 7_520_000
+        # }
+
         load_dict = {
-            "ctrl": 3_920_000,
-            "dstb": 5_480_000
+             "ctrl": 5_900_000,
+             "dstb": 8_000_001
         }
 
         self.policy = SAC_adv(config_update, config_arch)
@@ -55,6 +72,8 @@ class SafetyEnforcer:
         self.prev_q = None
 
     def get_action(self, state:np.ndarray, action:np.ndarray) -> np.ndarray:
+        # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
+        state = np.concatenate((state[2:8], state[9:]), axis=0) 
         s_dstb = np.concatenate((state, action), axis=0)
         dstb = self.policy.dstb(s_dstb)
 
@@ -75,6 +94,7 @@ class SafetyEnforcer:
         return action
 
     def get_q(self, state:np.ndarray, action:np.ndarray):
+        state = np.concatenate((state[2:8], state[9:]), axis=0)
         s_dstb = np.concatenate((state, action), axis=0)
         dstb = self.policy.dstb(s_dstb)
 
