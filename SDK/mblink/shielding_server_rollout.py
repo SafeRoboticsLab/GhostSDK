@@ -1,7 +1,3 @@
-from __future__ import print_function
-import rospy
-from gameplay_rollout.srv import *
-
 import socket
 import time
 import numpy as np
@@ -15,15 +11,6 @@ import select
 import pickle
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-def gameplay_rollout(state, action, horizon):
-    rospy.wait_for_service('gameplay_rollout')
-    try:
-        gamplay_rollout = rospy.ServiceProxy('gameplay_rollout', GameplayRollout)
-        res = gamplay_rollout(state, action, horizon)
-        return res.state, res.done, res.g_x, res.l_x
-    except rospy.ServiceException as e:
-        print("Service call failed: %s"%e)
-
 safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.5)
 
 server_socket = socket.socket()
@@ -35,6 +22,7 @@ thread_count = 0
 control_node_on = False
 serial_node_on = False
 vicon_node_on = False
+gameplay_node_on = False
 clients = dict()
 
 try:
@@ -45,7 +33,7 @@ except socket.error as e:
 print('Socket is listening..')
 server_socket.listen(5)  
 
-while not control_node_on or not serial_node_on or not vicon_node_on:
+while not control_node_on or not serial_node_on or not vicon_node_on or not gameplay_node_on:
     client, address = server_socket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     client_type = client.recv(1024)
@@ -61,6 +49,10 @@ while not control_node_on or not serial_node_on or not vicon_node_on:
         print("Serial Node attached")
         clients["serial"] = client
         serial_node_on = True
+    elif client_type.decode('utf-8') == "Gameplay":
+        print("Gameplay Node attached")
+        clients["gameplay"] = client
+        gameplay_node_on = True
 
     thread_count += 1
     print('Thread Number: ' + str(thread_count))
@@ -288,14 +280,32 @@ while True:
                 elif data == "8s":
                     if received_serial and received_vicon:
                         spirit_joint_pos = state[12:24]
-                        # print(spirit_joint_pos)
-
                         action = controller_forward.get_action()
                         ctrl = action - spirit_joint_pos
+                        _s = np.concatenate((state[2:8], state[9:]), axis=0)
+
+                        # value shielding
                         # ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
-                        final_state, done, g_x, l_x = gameplay_rollout(state, ctrl, 20)
-                        if g_x > 0:
-                            ctrl = safetyEnforcer.policy.ctrl(state)
+                        
+                        # rollout shielding
+                        clients["gameplay"].send(pickle.dumps([_s, ctrl], protocol=2))
+                        
+                        while not select.select([clients["gameplay"]], [], [], 0.01)[0]:
+                            # keep the current stance
+                            limbCmd(action_array[-1])
+                                
+                        try:
+                            gameplay_resp = clients["gameplay"].recv(1024)
+                            gameplay_data = pickle.loads(gameplay_resp)
+                            final_state = gameplay_data[0]
+                            done = gameplay_data[1]
+                            g_x = gameplay_data[2]
+                            l_x = gameplay_data[2]
+                            if g_x > 0:
+                                ctrl = safetyEnforcer.policy.ctrl(_s)
+
+                        except Exception as e:
+                            continue
 
                         # print(safetyEnforcer.prev_q)
                         #action = (ctrl + spirit_joint_pos).reshape((4, 3))
