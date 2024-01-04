@@ -155,6 +155,56 @@ def sittingDown():
             mb.rxstop()
             break
 
+def action_transform(ctrl, spirit_joint_pos, clipped = False):
+    if clipped:
+        clipped_action = []
+
+        abduction_increment_max = 0.5
+        abduction_increment_min = -0.5
+        hip_increment_max = 0.5
+        hip_increment_min = -0.5
+        knee_increment_max = 0.5
+        knee_increment_min = -0.5
+        
+        abduction_min = -0.5
+        abduction_max = 0.5
+        hip_min = 0.5
+        hip_max = 2.64
+        knee_min = 0.5
+        knee_max = 2.64
+
+        for i, j in enumerate(ctrl):
+            if i % 3 == 0:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, abduction_increment_min, abduction_increment_max
+                        ), 
+                        abduction_min, abduction_max
+                    )
+                )
+            elif i % 3 == 1:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, hip_increment_min, hip_increment_max
+                        ), 
+                        hip_min, hip_max
+                    )
+                )
+            elif i % 3 == 2:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, knee_increment_min, knee_increment_max
+                        ), 
+                        knee_min, knee_max
+                    )
+                )
+        return np.array(clipped_action).reshape((4, 3))
+    else:
+        return (ctrl + spirit_joint_pos).reshape((4, 3))
+
 current_stance = np.zeros(12)
 
 try:
@@ -207,6 +257,8 @@ q_array = []
 
 received_vicon = False
 received_serial = False
+
+g_x = 0.0
 
 while True:
     try:
@@ -288,11 +340,26 @@ while True:
                         # ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
                         
                         # rollout shielding
+                        ################# rollout shielding #################
                         clients["gameplay"].send(pickle.dumps([_s, ctrl], protocol=2))
                         
                         while not select.select([clients["gameplay"]], [], [], 0.01)[0]:
                             # keep the current stance
-                            limbCmd(action_array[-1])
+                            # limbCmd(action_array[-1])
+
+                            # continue with previous shielding flag
+                            if g_x > 0:
+                                ctrl = safetyEnforcer.policy.ctrl(_s)
+                                action = action_transform(ctrl, spirit_joint_pos, clipped=True)
+                            else:
+                                action = action_transform(ctrl, spirit_joint_pos, clipped=True)
+                            try:
+                                if action.ndim > 1:
+                                    action[:, [0, 1]] = action[:, [1, 0]]
+                                    action = action.reshape(-1)
+                            except:
+                                action = stable_stance
+                            limbCmd(action)
                                 
                         try:
                             gameplay_resp = clients["gameplay"].recv(1024)
@@ -306,55 +373,10 @@ while True:
 
                         except Exception as e:
                             continue
+                        #####################################################
 
                         # print(safetyEnforcer.prev_q)
-                        #action = (ctrl + spirit_joint_pos).reshape((4, 3))
-
-                        clipped_action = []
-                            
-                        abduction_increment_max = 0.5
-                        abduction_increment_min = -0.5
-                        hip_increment_max = 0.5
-                        hip_increment_min = -0.5
-                        knee_increment_max = 0.5
-                        knee_increment_min = -0.5
-                        
-                        abduction_min = -0.5
-                        abduction_max = 0.5
-                        hip_min = 0.5
-                        hip_max = 2.64
-                        knee_min = 0.5
-                        knee_max = 2.64
-
-                        for i, j in enumerate(ctrl):
-                            if i % 3 == 0:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, abduction_increment_min, abduction_increment_max
-                                        ), 
-                                        abduction_min, abduction_max
-                                    )
-                                )
-                            elif i % 3 == 1:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, hip_increment_min, hip_increment_max
-                                        ), 
-                                        hip_min, hip_max
-                                    )
-                                )
-                            elif i % 3 == 2:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, knee_increment_min, knee_increment_max
-                                        ), 
-                                        knee_min, knee_max
-                                    )
-                                )
-                        action = np.array(clipped_action).reshape((4, 3))
+                        action = action_transform(ctrl, spirit_joint_pos, clipped=True)
 
                         received_vicon = False
                         received_serial = False
