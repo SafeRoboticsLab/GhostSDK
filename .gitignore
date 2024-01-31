@@ -55,3 +55,6 @@ docs/_build/
 *.pyc
 
 .ipynb_checkpoints/
+
+*.bag
+*.tar.gz

@@ -7,7 +7,7 @@ from RARL.sac_adv import SAC_adv
 from utils import load_config
 
 class SafetyEnforcer:
-    def __init__(self, epsilon: float=0.0, imaginary_horizon: int=100, shield_type: Optional[str]="value", parent_dir: Optional[str]="") -> None:
+    def __init__(self, epsilon: float=0.0, imaginary_horizon: int=100, shield_type: Optional[str]="value", parent_dir: Optional[str]="", version=4) -> None:
         """_summary_
 
         Args:
@@ -21,12 +21,45 @@ class SafetyEnforcer:
 
         self.epsilon = epsilon
         self.imaginary_horizon = imaginary_horizon
+        self.version = version
 
-        # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
-        # training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
-        # training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
-        # training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
-        training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror_05"
+        if version == 0:
+            training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
+            # isaacs pretrained
+            load_dict = {
+                "ctrl": 3_980_000,
+                "dstb": 8_000_001
+            }
+        elif version == 1:
+            training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
+            # isaacs no pretrained
+            load_dict = {
+                "ctrl": 3_920_000,
+                "dstb": 5_480_000
+            }
+        elif version == 2:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
+            # old reach-avoid
+            load_dict = {
+                "ctrl": 4_100_000,
+                "dstb": 7_520_000
+            }
+        elif version == 3:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
+            # new reach-avoid (chiara)
+            load_dict = {
+                "ctrl": 5_900_000,
+                "dstb": 8_000_001
+            }
+        elif version == 4:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror_05"
+            # mirrored dstb reach-avoid
+            load_dict = {
+                "ctrl": 4_700_000,
+                "dstb": 8_000_001
+            }
+        else:
+            raise NotImplementedError
 
         model_path = os.path.join(parent_dir, training_dir, "model")
         model_config_path = os.path.join(parent_dir, training_dir, "config.yaml")
@@ -40,36 +73,6 @@ class SafetyEnforcer:
         config_arch = config['arch']
         config_update = config['update']
 
-        # isaacs pretrained
-        # load_dict = {
-        #     "ctrl": 3_980_000,
-        #     "dstb": 8_000_001
-        # }
-
-        # isaacs no pretrained
-        # load_dict = {
-        #     "ctrl": 3_920_000,
-        #     "dstb": 5_480_000
-        # }
-        
-        # old reach-avoid
-        # load_dict = {
-        #     "ctrl": 4_100_000,
-        #     "dstb": 7_520_000
-        # }
-
-        # new reach-avoid (chiara)
-        # load_dict = {
-        #     "ctrl": 5_900_000,
-        #     "dstb": 8_000_001
-        # }
-
-        # mirrored dstb reach-avoid
-        load_dict = {
-            "ctrl": 4_700_000,
-            "dstb": 8_000_001
-        }
-
         self.policy = SAC_adv(config_update, config_arch)
         self.policy.build_network(verbose=True)
         print("Loading frozen weights of model at {} with load_dict {}".format(model_path, load_dict))
@@ -80,8 +83,9 @@ class SafetyEnforcer:
         self.prev_q = None
 
     def get_action(self, state:np.ndarray, action:np.ndarray) -> np.ndarray:
-        # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
-        state = np.concatenate((state[2:8], state[9:]), axis=0) 
+        if self.version >= 3: 
+            # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
+            state = np.concatenate((state[2:8], state[9:]), axis=0)
         s_dstb = np.concatenate((state, action), axis=0)
         dstb = self.policy.dstb(s_dstb)
 
@@ -102,7 +106,8 @@ class SafetyEnforcer:
         return action
 
     def get_q(self, state:np.ndarray, action:np.ndarray):
-        state = np.concatenate((state[2:8], state[9:]), axis=0)
+        if self.version >= 3:
+            state = np.concatenate((state[2:8], state[9:]), axis=0)
         s_dstb = np.concatenate((state, action), axis=0)
         dstb = self.policy.dstb(s_dstb)
 

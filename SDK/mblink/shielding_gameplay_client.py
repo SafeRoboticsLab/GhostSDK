@@ -29,7 +29,7 @@ except OSError:
     pass
 
 s.setblocking(0)
-horizon = 50
+horizon = 300
 
 while True:
     try:

@@ -330,7 +330,8 @@ while True:
                 elif data == "6":
                     action = controller_lateral_right.get_action().reshape((4, 3))
                 elif data == "8s":
-                    if received_serial and received_vicon:
+                    # if received_serial and received_vicon: # blocking
+                    if True: # nonblocking, run with whatever state data
                         spirit_joint_pos = state[12:24]
                         action = controller_forward.get_action()
                         ctrl = action - spirit_joint_pos
@@ -352,6 +353,7 @@ while True:
                                 ctrl = safetyEnforcer.policy.ctrl(_s)
                                 action = action_transform(ctrl, spirit_joint_pos, clipped=True)
                             else:
+                                ctrl = controller_forward.get_action() - spirit_joint_pos
                                 action = action_transform(ctrl, spirit_joint_pos, clipped=True)
                             try:
                                 if action.ndim > 1:

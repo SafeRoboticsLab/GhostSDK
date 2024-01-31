@@ -34,8 +34,8 @@ mb.setRetry('_UPST_ADDRESS', 105) # Set computer upstream IP address to 192.168.
 mb.setRetry('UPST_LOOP_DELAY', 4) # Set upstream main TX rate (1000/freqHz)
 
 def limbCmd(pos):
-    kp = [60, 60, 60]
-    kd = [3, 3, 3]
+    kp = [60, 60, 80]
+    kd = [1.0, 1.0, 1.0]
 
     # Received om the mb in order (pos[3], Kp[3], Kd[3])x4
     data = np.zeros(58)
@@ -129,15 +129,21 @@ def main():
 
     try:        
         cur_time = time.time()
+        # dt = 1./250.
+        # L = 1.0
+        # T = 0.08
         dt = 1./250.
-        controller_forward = InverseKinematicsController(dt=dt, L=1.0, T=0.08, Xdist=0.464, Ydist=0.33)
-        controller_forward_left = InverseKinematicsController(dt=dt, L=1.0, T=0.08, Lrot=-0.4, Xdist=0.464, Ydist=0.33)
-        controller_forward_right = InverseKinematicsController(dt=dt, L=1.0, T=0.08, Lrot=0.4, Xdist=0.464, Ydist=0.33)
-        controller_backward = InverseKinematicsController(dt=dt, L=1.0, T=0.08, angle=0, Xdist=0.464, Ydist=0.33)
-        controller_backward_left = InverseKinematicsController(dt=dt, L=1.0, T=0.08, angle=0, Lrot=-0.4, Xdist=0.464, Ydist=0.33)
-        controller_backward_right = InverseKinematicsController(dt=dt, L=1.0, T=0.08, angle=0, Lrot=0.4, Xdist=0.464, Ydist=0.33)
-        controller_lateral_left = InverseKinematicsController(dt=dt, L=1.0, T=0.08, angle=-90, Xdist=0.464, Ydist=0.33)
-        controller_lateral_right = InverseKinematicsController(dt=dt, L=1.0, T=0.08, angle=90, Xdist=0.464, Ydist=0.33)
+        L = 1.0
+        T = 0.8
+        #controller_forward = InverseKinematicsController(dt=0.02, L=1.5, T=0.4, Xdist=0.464, Ydist=0.33)
+        controller_forward = InverseKinematicsController(dt=0.02, L=1.2, T=T, Xdist=0.464, Ydist=0.33)
+        controller_forward_left = InverseKinematicsController(dt=0.02, L=L, T=T, Lrot=-0.4, Xdist=0.464, Ydist=0.33)
+        controller_forward_right = InverseKinematicsController(dt=0.02, L=L, T=T, Lrot=0.4, Xdist=0.464, Ydist=0.33)
+        controller_backward = InverseKinematicsController(dt=0.02, L=L, T=T, angle=0, Xdist=0.464, Ydist=0.33)
+        controller_backward_left = InverseKinematicsController(dt=0.02, L=L, T=T, angle=0, Lrot=-0.4, Xdist=0.464, Ydist=0.33)
+        controller_backward_right = InverseKinematicsController(dt=0.02, L=L, T=T, angle=0, Lrot=0.4, Xdist=0.464, Ydist=0.33)
+        controller_lateral_left = InverseKinematicsController(dt=0.02, L=L, T=T, angle=-90, Xdist=0.464, Ydist=0.33)
+        controller_lateral_right = InverseKinematicsController(dt=0.02, L=L, T=T, angle=90, Xdist=0.464, Ydist=0.33)
 
         while time.time() - cur_time < 2:
             sitting()

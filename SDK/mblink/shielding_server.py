@@ -257,7 +257,8 @@ while True:
                 action = stable_stance
             else:
                 if data == "8":
-                    action = controller_forward_slow.get_action().reshape((4, 3))
+                    # action = controller_forward_slow.get_action().reshape((4, 3))
+                    action = controller_forward.get_action().reshape((4, 3))
                 elif data == "9":
                     action = controller_forward_right.get_action().reshape((4, 3))
                 elif data == "7":
@@ -272,12 +273,25 @@ while True:
                     action = controller_lateral_left.get_action().reshape((4, 3))
                 elif data == "6":
                     action = controller_lateral_right.get_action().reshape((4, 3))
-                elif data == "8s":
+                elif "s" in data:
                     if received_serial and received_vicon:
                         spirit_joint_pos = state[12:24]
-                        # print(spirit_joint_pos)
-
-                        action = controller_forward.get_action()
+                        if data == "8s":
+                            action = controller_forward.get_action()
+                        elif data == "9s":
+                            action = controller_forward_right.get_action()
+                        elif data == "7s":
+                            action = controller_forward_left.get_action()
+                        elif data == "2s":
+                            action = controller_backward.get_action()
+                        elif data == "1s":
+                            action = controller_backward_left.get_action()
+                        elif data == "3s":
+                            action = controller_backward_right.get_action()
+                        elif data == "4s":
+                            action = controller_lateral_left.get_action()
+                        elif data == "6s":
+                            action = controller_lateral_right.get_action()
                         ctrl = action - spirit_joint_pos
                         ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
                         print(safetyEnforcer.prev_q)
