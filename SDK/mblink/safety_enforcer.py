@@ -1,7 +1,6 @@
 from typing import Optional
 import numpy as np
 import os
-import torch
 
 from RARL.sac_adv import SAC_adv
 from utils import load_config
@@ -43,6 +42,13 @@ class SafetyEnforcer:
             load_dict = {
                 "ctrl": 4_100_000,
                 "dstb": 7_520_000
+            }
+        elif version == 2.1:
+            # old binary
+            training_dir = "train_result/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained_05"
+            load_dict = {
+                "ctrl": 7_580_000,
+                "dstb": 8_000_001
             }
         elif version == 3:
             training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
@@ -106,18 +112,21 @@ class SafetyEnforcer:
         return action
 
     def get_q(self, state:np.ndarray, action:np.ndarray):
-        if self.version >= 3:
-            state = np.concatenate((state[2:8], state[9:]), axis=0)
-        s_dstb = np.concatenate((state, action), axis=0)
-        dstb = self.policy.dstb(s_dstb)
+        if state is not None and action is not None:
+            if self.version >= 3:
+                state = np.concatenate((state[2:8], state[9:]), axis=0)
+            s_dstb = np.concatenate((state, action), axis=0)
+            dstb = self.policy.dstb(s_dstb)
 
-        critic_q = max(
-            self.policy.adv_critic(
-                state, action, dstb
+            critic_q = max(
+                self.policy.adv_critic(
+                    state, action, dstb
+                )
             )
-        )
-        
-        return critic_q
+            
+            return critic_q.reshape(-1)[0]
+        else:
+            return self.prev_q
 
     def target_margin(self, state):
         """ (36) and 33D state
