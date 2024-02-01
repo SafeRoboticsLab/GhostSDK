@@ -71,12 +71,12 @@ while ser.isOpen():
             state_array = np.concatenate((state_array, (state_array[3:15] - old_joint_pos) / (time.time() - last_time)), axis=0) # joint vel
             old_joint_pos = state_array[3:15]
 
-            serial_data = bytearray(struct.pack(
-                "f"*33, 
+            serial_data = struct.pack(
+                "!33f", 
                 *state_array
-            ))
+            )
             
-            s.sendall(bytes(serial_data))
+            s.sendall(serial_data)
             last_time = time.time()
 
     except Exception as e:

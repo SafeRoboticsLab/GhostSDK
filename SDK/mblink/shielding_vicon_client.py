@@ -28,8 +28,18 @@ s.setblocking(0)
 
 def callback(data):
     # rospy.loginfo("{:.3f}, {:.3f}, {:.3f}".format(data.transform.translation.x, data.transform.translation.y, data.transform.translation.z))
-    vicon_data = bytearray(struct.pack("fff", data.transform.translation.x, data.transform.translation.y, data.transform.translation.z - 0.05))
-    s.sendall(bytes(vicon_data))
+    vicon_data = struct.pack(
+        "!7f", 
+        data.transform.translation.x, 
+        data.transform.translation.y, 
+        data.transform.translation.z - 0.04, 
+        data.transform.rotation.x, 
+        data.transform.rotation.y, 
+        data.transform.rotation.z, 
+        data.transform.rotation.w
+    )
+
+    s.sendall(vicon_data)
     
 def listener():
     rospy.init_node('vicon_listener', anonymous=True)

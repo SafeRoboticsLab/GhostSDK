@@ -11,7 +11,7 @@ import select
 import pickle
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.5)
+safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.6)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -60,8 +60,8 @@ mb.setRetry('_UPST_ADDRESS', 105) # Set computer upstream IP address to 192.168.
 mb.setRetry('UPST_LOOP_DELAY', 4) # Set upstream main TX rate (1000/freqHz)
 
 def limbCmd(pos):
-    kp = [60, 60, 60]
-    kd = [3, 3, 3]
+    kp = [80, 80, 80]
+    kd = [1, 1, 1]
 
     # Received om the mb in order (pos[3], Kp[3], Kd[3])x4
     data = np.zeros(58)
@@ -150,6 +150,56 @@ def sittingDown():
             mb.rxstop()
             break
 
+def action_transform(ctrl, spirit_joint_pos, clipped = False):
+    if clipped:
+        clipped_action = []
+
+        abduction_increment_max = 0.2
+        abduction_increment_min = -0.2
+        hip_increment_max = 0.2
+        hip_increment_min = -0.2
+        knee_increment_max = 0.2
+        knee_increment_min = -0.2
+        
+        abduction_min = -0.5
+        abduction_max = 0.5
+        hip_min = 0.5
+        hip_max = 2.64
+        knee_min = 0.5
+        knee_max = 2.64
+
+        for i, j in enumerate(ctrl):
+            if i % 3 == 0:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, abduction_increment_min, abduction_increment_max
+                        ), 
+                        abduction_min, abduction_max
+                    )
+                )
+            elif i % 3 == 1:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, hip_increment_min, hip_increment_max
+                        ), 
+                        hip_min, hip_max
+                    )
+                )
+            elif i % 3 == 2:
+                clipped_action.append(
+                    np.clip(
+                        spirit_joint_pos[i] + np.clip(
+                            j, knee_increment_min, knee_increment_max
+                        ), 
+                        knee_min, knee_max
+                    )
+                )
+        return np.array(clipped_action).reshape((4, 3))
+    else:
+        return (ctrl + spirit_joint_pos).reshape((4, 3))
+
 current_stance = np.zeros(12)
 
 try:
@@ -215,21 +265,22 @@ while True:
         if ready_vicon[0]:
             vicon_struct = clients["vicon"].recv(1024)
             try:
-                vicon_data = struct.unpack("fff", bytearray(vicon_struct))
+                vicon_data = struct.unpack("!7f", vicon_struct[-28:])
                 # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
-                state[0] = vicon_data[0] + 5.7# x
-                state[1] = vicon_data[1]  - 8.0# y
+                state[0] = vicon_data[0] # x
+                state[1] = vicon_data[1] # y
                 state[2] = vicon_data[2] # z
 
                 received_vicon = True
             except Exception as e:
+                print("Vicon:", e)
                 pass
 
         ready_serial = select.select([clients["serial"]], [], [], 0.01)
         if ready_serial[0]:
             serial_struct = clients["serial"].recv(1024)
             try:
-                serial_data = struct.unpack("f"*33, bytearray(serial_struct))
+                serial_data = struct.unpack("!33f", serial_struct[-132:])
                 # print(serial_data)
                 # print("Serial: {:.3f}, {:.3f}, {:.3f}".format(serial_data[0], serial_data[1], serial_data[2]))
                 
@@ -250,6 +301,7 @@ while True:
                 
                 received_serial = True
             except Exception as e:
+                print("Serial:", e)
                 pass
         
         if time.time() - cur_time > dt:
@@ -295,53 +347,8 @@ while True:
                         ctrl = action - spirit_joint_pos
                         ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
                         print(safetyEnforcer.prev_q)
-                        #action = (ctrl + spirit_joint_pos).reshape((4, 3))
 
-                        clipped_action = []
-                            
-                        abduction_increment_max = 0.5
-                        abduction_increment_min = -0.5
-                        hip_increment_max = 0.5
-                        hip_increment_min = -0.5
-                        knee_increment_max = 0.5
-                        knee_increment_min = -0.5
-                        
-                        abduction_min = -0.5
-                        abduction_max = 0.5
-                        hip_min = 0.5
-                        hip_max = 2.64
-                        knee_min = 0.5
-                        knee_max = 2.64
-
-                        for i, j in enumerate(ctrl):
-                            if i % 3 == 0:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, abduction_increment_min, abduction_increment_max
-                                        ), 
-                                        abduction_min, abduction_max
-                                    )
-                                )
-                            elif i % 3 == 1:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, hip_increment_min, hip_increment_max
-                                        ), 
-                                        hip_min, hip_max
-                                    )
-                                )
-                            elif i % 3 == 2:
-                                clipped_action.append(
-                                    np.clip(
-                                        spirit_joint_pos[i] + np.clip(
-                                            j, knee_increment_min, knee_increment_max
-                                        ), 
-                                        knee_min, knee_max
-                                    )
-                                )
-                        action = np.array(clipped_action).reshape((4, 3))
+                        action = action_transform(ctrl, spirit_joint_pos, clipped=True)
 
                         received_vicon = False
                         received_serial = False

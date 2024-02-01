@@ -1,3 +1,5 @@
+# Auto walk from A to B
+
 import socket
 import time
 import numpy as np
@@ -9,9 +11,12 @@ import os
 import sys
 import select
 import pickle
+from scipy.spatial.transform import Rotation
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.5)
+safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.6)
+goal = [3.0, 8.0]
+goal_radius = 0.5 # terminate when close enough
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -22,7 +27,6 @@ thread_count = 0
 control_node_on = False
 serial_node_on = False
 vicon_node_on = False
-gameplay_node_on = False
 clients = dict()
 
 try:
@@ -33,7 +37,7 @@ except socket.error as e:
 print('Socket is listening..')
 server_socket.listen(5)  
 
-while not control_node_on or not serial_node_on or not vicon_node_on or not gameplay_node_on:
+while not control_node_on or not serial_node_on or not vicon_node_on:
     client, address = server_socket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     client_type = client.recv(1024)
@@ -49,10 +53,6 @@ while not control_node_on or not serial_node_on or not vicon_node_on or not game
         print("Serial Node attached")
         clients["serial"] = client
         serial_node_on = True
-    elif client_type.decode('utf-8') == "Gameplay":
-        print("Gameplay Node attached")
-        clients["gameplay"] = client
-        gameplay_node_on = True
 
     thread_count += 1
     print('Thread Number: ' + str(thread_count))
@@ -210,6 +210,7 @@ current_stance = np.zeros(12)
 try:
     cur_time = time.time()
     dt = 1./250.
+    controller = InverseKinematicsController(dt=dt, L=1.0, T=0.12) # use for auto walking, change Lrot to turn
     controller_forward = InverseKinematicsController(dt=dt, L=1.0, T=0.08)
     controller_forward_slow = InverseKinematicsController(dt=dt, L=1.0, T=0.15)
     controller_forward_left = InverseKinematicsController(dt=dt, L=1.0, T=0.08, Lrot=-0.4)
@@ -247,6 +248,7 @@ except KeyboardInterrupt:
     mb.rxstop()
 
 state = np.zeros(36)
+quat = [0, 0, 0, 0]
 
 timestamp = []
 state_array = []
@@ -258,9 +260,14 @@ q_array = []
 received_vicon = False
 received_serial = False
 
-g_x = np.inf
-l_x = np.inf
-wait_for_gameplay = False
+def map_rad_range(angle):
+    return ((angle + np.pi) % (2*np.pi)) - np.pi
+
+def calculate_angle(point_a, point_b):
+    vector_ab = np.array(point_b) - np.array(point_a)
+    angle_rad = map_rad_range(np.arctan2(vector_ab[1], vector_ab[0]) + np.pi/2)
+    angle_deg = np.degrees(angle_rad)
+    return angle_rad, angle_deg
 
 while True:
     try:
@@ -279,6 +286,7 @@ while True:
                 state[0] = vicon_data[0] # x
                 state[1] = vicon_data[1] # y
                 state[2] = vicon_data[2] # z
+                quat = vicon_data[3:]
 
                 received_vicon = True
             except Exception as e:
@@ -289,6 +297,7 @@ while True:
         if ready_serial[0]:
             serial_struct = clients["serial"].recv(1024)
             try:
+                # print(len(serial_struct))
                 serial_data = struct.unpack("!33f", serial_struct[-132:])
                 # print(serial_data)
                 # print("Serial: {:.3f}, {:.3f}, {:.3f}".format(serial_data[0], serial_data[1], serial_data[2]))
@@ -318,7 +327,7 @@ while True:
                 action = stable_stance
             else:
                 if data == "8":
-                    action = controller_forward_slow.get_action().reshape((4, 3))
+                    action = controller_forward.get_action().reshape((4, 3))
                 elif data == "9":
                     action = controller_forward_right.get_action().reshape((4, 3))
                 elif data == "7":
@@ -333,66 +342,51 @@ while True:
                     action = controller_lateral_left.get_action().reshape((4, 3))
                 elif data == "6":
                     action = controller_lateral_right.get_action().reshape((4, 3))
+                elif data == "a": # auto walk to goal
+                    # calculate turn from heading angle
+                    if received_serial and received_vicon:
+                        euler_angles = Rotation.from_quat(quat).as_euler('xyz')
+                        angle_rad, angle_deg = calculate_angle(state[:2], goal)
+                        Lrot = np.clip(map_rad_range(euler_angles[2] - angle_rad + np.pi), -0.8, 0.8)
+                        controller.Lrot = Lrot
+                        distance = np.linalg.norm(np.array(state[:2]) - np.array(goal), 2)
+                        if distance > goal_radius:
+                            action = controller.get_action().reshape((4, 3))
+                        else:
+                            action = stable_stance
                 elif "s" in data:
-                    if received_serial and received_vicon: # blocking
-                    # if True: # nonblocking, run with whatever state data
-                        _s = np.concatenate((state[2:8], state[9:]), axis=0)
+                    if received_serial and received_vicon:
                         spirit_joint_pos = state[12:24]
+                        if data == "8s":
+                            action = controller_forward.get_action()
+                        elif data == "9s":
+                            action = controller_forward_right.get_action()
+                        elif data == "7s":
+                            action = controller_forward_left.get_action()
+                        elif data == "2s":
+                            action = controller_backward.get_action()
+                        elif data == "1s":
+                            action = controller_backward_left.get_action()
+                        elif data == "3s":
+                            action = controller_backward_right.get_action()
+                        elif data == "4s":
+                            action = controller_lateral_left.get_action()
+                        elif data == "6s":
+                            action = controller_lateral_right.get_action()
+                        elif data == "as": # auto walk to goal, with shield
+                            euler_angles = Rotation.from_quat(quat).as_euler('xyz')
+                            angle_rad, angle_deg = calculate_angle(state[:2], goal)
+                            Lrot = np.clip(map_rad_range(euler_angles[2] - angle_rad + np.pi), -0.8, 0.8)
+                            controller.Lrot = Lrot
+                            distance = np.linalg.norm(np.array(state[:2]) - np.array(goal), 2)
+                            if distance > goal_radius:
+                                action = controller.get_action()
+                            else:
+                                action = spirit_joint_pos
+                        ctrl = action - spirit_joint_pos
+                        ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
+                        print(safetyEnforcer.prev_q)
 
-                        # value shielding
-                        ################ value shielding ####################
-                        # action = controller_forward.get_action()
-                        # spirit_joint_pos = state[12:24]
-                        # ctrl = action - spirit_joint_pos
-                        # ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
-                        #####################################################
-                        
-                        # rollout shielding
-                        ################# rollout shielding #################
-                        if g_x > 0 or l_x > 0:
-                            # ctrl = safetyEnforcer.policy.ctrl(_s)
-                            ctrl = safetyEnforcer.get_safety_action(_s, threshold=0.1)
-                        else:
-                            if data == "8s":
-                                ctrl = controller_forward.get_action() - spirit_joint_pos
-                            elif data == "9s":
-                                ctrl = controller_forward_right.get_action() - spirit_joint_pos
-                            elif data == "7s":
-                                ctrl = controller_forward_left.get_action() - spirit_joint_pos
-                            elif data == "2s":
-                                ctrl = controller_backward.get_action() - spirit_joint_pos
-                            elif data == "1s":
-                                ctrl = controller_backward_left.get_action() - spirit_joint_pos
-                            elif data == "3s":
-                                ctrl = controller_backward_right.get_action() - spirit_joint_pos
-                            elif data == "4s":
-                                ctrl = controller_lateral_left.get_action() - spirit_joint_pos
-                            elif data == "6s":
-                                ctrl = controller_lateral_right.get_action() - spirit_joint_pos
-                            
-                            # ctrl = controller_forward.get_action() - spirit_joint_pos
-
-                        if not wait_for_gameplay:
-                            clients["gameplay"].send(pickle.dumps([_s, ctrl], protocol=2))
-                            wait_for_gameplay = True
-                        else:
-                            if select.select([clients["gameplay"]], [], [], 0.01)[0]:
-                                try:
-                                    gameplay_resp = clients["gameplay"].recv(1024)
-                                    gameplay_data = pickle.loads(gameplay_resp)
-                                    final_state = gameplay_data[0]
-                                    done = gameplay_data[1]
-                                    g_x = gameplay_data[2]
-                                    l_x = gameplay_data[2]
-                                    if g_x > 0 or l_x > 0:
-                                        # ctrl = safetyEnforcer.policy.ctrl(_s)
-                                        ctrl = safetyEnforcer.get_safety_action(_s, threshold=0.1)
-                                    wait_for_gameplay = False
-                                except Exception as e:
-                                    pass
-                        #####################################################
-
-                        # print(safetyEnforcer.prev_q)
                         action = action_transform(ctrl, spirit_joint_pos, clipped=True)
 
                         received_vicon = False

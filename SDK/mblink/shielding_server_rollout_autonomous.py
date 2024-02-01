@@ -1,3 +1,5 @@
+# Auto walk from A to B
+
 import socket
 import time
 import numpy as np
@@ -9,9 +11,12 @@ import os
 import sys
 import select
 import pickle
+from scipy.spatial.transform import Rotation
 timestr = time.strftime("%Y%m%d%H%M%S")
 
 safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.5)
+goal = [4.0, 4.0]
+goal_radius = 0.5 # terminate when close enough
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -210,6 +215,7 @@ current_stance = np.zeros(12)
 try:
     cur_time = time.time()
     dt = 1./250.
+    controller = InverseKinematicsController(dt=dt, L=1.0, T=0.12) # use for auto walking, change Lrot to turn
     controller_forward = InverseKinematicsController(dt=dt, L=1.0, T=0.08)
     controller_forward_slow = InverseKinematicsController(dt=dt, L=1.0, T=0.15)
     controller_forward_left = InverseKinematicsController(dt=dt, L=1.0, T=0.08, Lrot=-0.4)
@@ -247,6 +253,7 @@ except KeyboardInterrupt:
     mb.rxstop()
 
 state = np.zeros(36)
+quat = [0, 0, 0, 0]
 
 timestamp = []
 state_array = []
@@ -257,6 +264,15 @@ q_array = []
 
 received_vicon = False
 received_serial = False
+
+def map_rad_range(angle):
+    return ((angle + np.pi) % (2*np.pi)) - np.pi
+
+def calculate_angle(point_a, point_b):
+    vector_ab = np.array(point_b) - np.array(point_a)
+    angle_rad = map_rad_range(np.arctan2(vector_ab[1], vector_ab[0]) + np.pi/2)
+    angle_deg = np.degrees(angle_rad)
+    return angle_rad, angle_deg
 
 g_x = np.inf
 l_x = np.inf
@@ -279,6 +295,7 @@ while True:
                 state[0] = vicon_data[0] # x
                 state[1] = vicon_data[1] # y
                 state[2] = vicon_data[2] # z
+                quat = vicon_data[3:]
 
                 received_vicon = True
             except Exception as e:
@@ -333,6 +350,19 @@ while True:
                     action = controller_lateral_left.get_action().reshape((4, 3))
                 elif data == "6":
                     action = controller_lateral_right.get_action().reshape((4, 3))
+                elif data == "a": # auto walk to goal
+                    # calculate turn from heading angle
+                    if received_serial and received_vicon:
+                        euler_angles = Rotation.from_quat(quat).as_euler('xyz')
+                        angle_rad, angle_deg = calculate_angle(state[:2], goal)
+                        Lrot = np.clip(map_rad_range(euler_angles[2] - angle_rad + np.pi), -0.8, 0.8)
+                        controller.Lrot = Lrot
+                        distance = np.linalg.norm(np.array(state[:2]) - np.array(goal), 2)
+                        # print(distance)
+                        if distance > goal_radius:
+                            action = controller.get_action().reshape((4, 3))
+                        else:
+                            action = stable_stance
                 elif "s" in data:
                     if received_serial and received_vicon: # blocking
                     # if True: # nonblocking, run with whatever state data
@@ -369,6 +399,16 @@ while True:
                                 ctrl = controller_lateral_left.get_action() - spirit_joint_pos
                             elif data == "6s":
                                 ctrl = controller_lateral_right.get_action() - spirit_joint_pos
+                            elif data == "as": # auto walk to goal, with shield
+                                euler_angles = Rotation.from_quat(quat).as_euler('xyz')
+                                angle_rad, angle_deg = calculate_angle(state[:2], goal)
+                                Lrot = np.clip(map_rad_range(euler_angles[2] - angle_rad + np.pi), -0.8, 0.8)
+                                controller.Lrot = Lrot
+                                distance = np.linalg.norm(np.array(state[:2]) - np.array(goal), 2)
+                                if distance > goal_radius:
+                                    ctrl = controller.get_action() - spirit_joint_pos
+                                else:
+                                    ctrl = np.zeros(12)
                             
                             # ctrl = controller_forward.get_action() - spirit_joint_pos
 

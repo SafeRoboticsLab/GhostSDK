@@ -118,9 +118,84 @@ class SafetyEnforcer:
         )
         
         return critic_q
+
+    def target_margin(self, state):
+        """ (36) and 33D state
+            (x, y), z, 
+            x_dot, y_dot, z_dot,
+            roll, pitch, (yaw)
+            w_x, w_y, w_z,
+            joint_pos x 12,
+            joint_vel x 12
+        """
+        # this is not the correct target margin, missing corner pos and toe pos, replacing corner pos with height, assuming that toes always touch ground
+        # l(x) < 0 --> x \in T
+        if self.version >= 3: 
+            # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
+            if len(state) == 36:
+                state = np.concatenate((state[2:8], state[9:]), axis=0)
+            
+            spirit_joint_pos = state[9:21]
+            return {
+                "height": state[0] - 0.4,
+                "roll": abs(state[4]) - 0.20,
+                "pitch": abs(state[5]) - 0.20
+                # "w_x": abs(state[6]) - 0.17444,
+                # "w_y": abs(state[7]) - 0.17444,
+                # "w_z": abs(state[8]) - 0.17444,
+                # "x_dot": abs(state[1]) - 0.2,
+                # "y_dot": abs(state[2]) - 0.2,
+                # "z_dot": abs(state[3]) - 0.2
+            }
+        else:
+            if len(state) == 33:
+                print("ERROR: asking for 36D state when there is only 33D state")
+                return {"": np.inf}
+            
+            spirit_joint_pos = state[12:24]
+            return {
+                "height": state[2] - 0.4,
+                "w_x": abs(state[9]) - 0.17444,
+                "w_y": abs(state[10]) - 0.17444,
+                "w_z": abs(state[11]) - 0.17444,
+                "x_dot": abs(state[3]) - 0.2,
+                "y_dot": abs(state[4]) - 0.2,
+                "z_dot": abs(state[5]) - 0.2
+            }
     
-    def get_safety_action(self, state):
-        return self.policy.ctrl(state)
+    def get_safety_action(self, state, target=True, threshold=0.0):
+        # stable_stance = np.array([
+        #     0.3, 0.75, 1.45,
+        #     0.3, 0.75, 1.45,
+        #     -0.3, 0.75, 1.45,
+        #     -0.3, 0.75, 1.45
+        # ])
+        stable_stance = np.array([
+            0.1, 0.75, 1.45, 
+            0.4, 0.6, 1.9, 
+            -0.1, 0.75, 1.45, 
+            -0.4, 0.6, 1.9
+        ])
+
+        if not target:
+            return self.policy.ctrl(state)
+        else:
+            # switch between fallback and target stable stance, depending on the current state
+            margin = self.target_margin(state)
+            lx = max(margin.values())
+            # print(margin, "vx", abs(state[1]) - 0.2, "vy", abs(state[2]) - 0.2, "vz", abs(state[3]) - 0.2)
+            if len(state) == 33:
+                spirit_joint_pos = state[9:21]
+            elif len(state) == 36:
+                spirit_joint_pos = state[12:24]
+            else:
+                raise ValueError
+            if lx <= threshold: # account for sensor noise
+                # in target set, just output stable stance
+                #! TODO: enforce stable stance instead of just outputting zero changes to the current stance
+                return np.clip(stable_stance - spirit_joint_pos, -np.ones(12)*0.1, np.ones(12)*0.1)
+            else:
+                return self.policy.ctrl(state)
     
     def get_shielding_status(self):
         return self.is_shielded
