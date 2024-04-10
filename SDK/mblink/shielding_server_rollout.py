@@ -261,6 +261,8 @@ received_serial = False
 g_x = np.inf
 l_x = np.inf
 wait_for_gameplay = False
+L_horizon = 3
+step = 0
 
 while True:
     try:
@@ -274,7 +276,7 @@ while True:
         if ready_vicon[0]:
             vicon_struct = clients["vicon"].recv(1024)
             try:
-                vicon_data = struct.unpack("!7f", vicon_struct[-28:])
+                vicon_data = struct.unpack("!9f", vicon_struct[-36:])
                 # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
                 state[0] = vicon_data[0] # x
                 state[1] = vicon_data[1] # y
@@ -351,8 +353,10 @@ while True:
                         ################# rollout shielding #################
                         if g_x > 0 or l_x > 0:
                             # ctrl = safetyEnforcer.policy.ctrl(_s)
+                            safetyEnforcer.is_shielded = True
                             ctrl = safetyEnforcer.get_safety_action(_s, threshold=0.1)
                         else:
+                            safetyEnforcer.is_shielded = False
                             if data == "8s":
                                 ctrl = controller_forward.get_action() - spirit_joint_pos
                             elif data == "9s":
@@ -375,21 +379,25 @@ while True:
                         if not wait_for_gameplay:
                             clients["gameplay"].send(pickle.dumps([_s, ctrl], protocol=2))
                             wait_for_gameplay = True
+                            step = 0
                         else:
-                            if select.select([clients["gameplay"]], [], [], 0.01)[0]:
-                                try:
-                                    gameplay_resp = clients["gameplay"].recv(1024)
-                                    gameplay_data = pickle.loads(gameplay_resp)
-                                    final_state = gameplay_data[0]
-                                    done = gameplay_data[1]
-                                    g_x = gameplay_data[2]
-                                    l_x = gameplay_data[2]
-                                    if g_x > 0 or l_x > 0:
-                                        # ctrl = safetyEnforcer.policy.ctrl(_s)
-                                        ctrl = safetyEnforcer.get_safety_action(_s, threshold=0.1)
-                                    wait_for_gameplay = False
-                                except Exception as e:
-                                    pass
+                            if step >= L_horizon:
+                                if select.select([clients["gameplay"]], [], [], 0.01)[0]:
+                                    try:
+                                        gameplay_resp = clients["gameplay"].recv(1024)
+                                        gameplay_data = pickle.loads(gameplay_resp)
+                                        final_state = gameplay_data[0]
+                                        done = gameplay_data[1]
+                                        g_x = gameplay_data[2]
+                                        l_x = gameplay_data[2]
+                                        if g_x > 0 or l_x > 0:
+                                            # ctrl = safetyEnforcer.policy.ctrl(_s)
+                                            ctrl = safetyEnforcer.get_safety_action(_s, threshold=0.1)
+                                        wait_for_gameplay = False
+                                        step = 0
+                                    except Exception as e:
+                                        pass
+                            step += 1
                         #####################################################
 
                         # print(safetyEnforcer.prev_q)

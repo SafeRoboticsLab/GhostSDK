@@ -265,7 +265,7 @@ while True:
         if ready_vicon[0]:
             vicon_struct = clients["vicon"].recv(1024)
             try:
-                vicon_data = struct.unpack("!7f", vicon_struct[-28:])
+                vicon_data = struct.unpack("!9f", vicon_struct[-36:])
                 # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
                 state[0] = vicon_data[0] # x
                 state[1] = vicon_data[1] # y

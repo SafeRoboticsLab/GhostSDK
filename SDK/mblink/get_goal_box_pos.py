@@ -8,7 +8,7 @@ def callback(data):
     
 def listener():
     rospy.init_node('vicon_listener', anonymous=True)
-    rospy.Subscriber("/vicon/goal_box/goal_box", TransformStamped, callback)
+    rospy.Subscriber("/vicon/goal_bottle/goal_bottle", TransformStamped, callback)
     rospy.spin()
 
 if __name__ == '__main__':
