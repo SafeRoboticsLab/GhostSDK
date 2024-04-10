@@ -464,6 +464,27 @@ class SAC_adv(BaseMASAC):
         restore_model(self.dstb, self.device, dstb_step,
                       os.path.join(model_folder, 'dstb'), 'actor')
 
+    def restore_refactor(self,
+                         step: int,
+                         model_folder: str,
+                         load_dict: Optional[dict] = None):
+        if load_dict is not None:
+            ## critic follows control
+            ctrl_step = load_dict["ctrl"]
+            dstb_step = load_dict["dstb"]
+        else:
+            ctrl_step = step
+            dstb_step = step
+
+        restore_model(self.adv_critic, self.device, ctrl_step,
+                      os.path.join(model_folder, 'central'), 'central')
+        restore_model(self.adv_critic_target, self.device, ctrl_step,
+                      os.path.join(model_folder, 'central'), 'central')
+        restore_model(self.ctrl, self.device, ctrl_step,
+                      os.path.join(model_folder, 'ctrl'), 'ctrl')
+        restore_model(self.dstb, self.device, dstb_step,
+                      os.path.join(model_folder, 'dstb'), 'dstb')
+
     def value(self,
               state: np.ndarray,
               append: Optional[Union[np.ndarray, torch.Tensor]] = None,

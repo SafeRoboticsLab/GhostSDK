@@ -1,5 +1,4 @@
 from typing import Optional
-from agent import ISAACS
 import numpy as np
 import os
 
@@ -34,81 +33,64 @@ class SafetyEnforcer:
         self.imaginary_horizon = imaginary_horizon
         self.version = version
 
-        if version < 5:
-            if version == 0:
-                training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
-                # isaacs pretrained
-                load_dict = {"ctrl": 3_980_000, "dstb": 8_000_001}
-            elif version == 1:
-                training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
-                # isaacs no pretrained
-                load_dict = {"ctrl": 3_920_000, "dstb": 5_480_000}
-            elif version == 2:
-                training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
-                # old reach-avoid
-                load_dict = {"ctrl": 4_100_000, "dstb": 7_520_000}
-            elif version == 2.1:
-                # old binary
-                training_dir = "train_result/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained_05"
-                load_dict = {"ctrl": 7_580_000, "dstb": 8_000_001}
-            elif version == 3:
-                training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
-                # new reach-avoid (chiara)
-                load_dict = {"ctrl": 5_900_000, "dstb": 8_000_001}
-            elif version == 4:
-                training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror_05"
-                # mirrored dstb reach-avoid
-                load_dict = {"ctrl": 4_700_000, "dstb": 8_000_001}
-            else:
-                raise NotImplementedError
-
-            model_path = os.path.join(parent_dir, training_dir, "model")
-            model_config_path = os.path.join(parent_dir, training_dir,
-                                             "config.yaml")
-
-            config_file = os.path.join(parent_dir, model_config_path)
-
-            if not os.path.exists(config_file):
-                raise ValueError(
-                    "Cannot find config file for the model, terminated")
-
-            config = load_config(config_file)
-            config_arch = config['arch']
-            config_update = config['update']
-
-            self.policy = SAC_adv(config_update, config_arch)
-            self.policy.build_network(verbose=True)
-            print("Loading frozen weights of model at {} with load_dict {}".
-                  format(model_path, load_dict))
-            self.policy.restore(None, model_path, load_dict=load_dict)
-            print("-> Done")
-
-            self.critic = self.policy.adv_critic
-            self.dstb = self.policy.dstb
-            self.ctrl = self.policy.ctrl
+        if version == 0:
+            training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
+            # isaacs pretrained
+            load_dict = {"ctrl": 3_980_000, "dstb": 8_000_001}
+        elif version == 1:
+            training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef/spirit_isaacs_avoidonly_f5_newStateDef_05"
+            # isaacs no pretrained
+            load_dict = {"ctrl": 3_920_000, "dstb": 5_480_000}
+        elif version == 2:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_newStateDef_pretrained/spirit_isaacs_reachavoid_f5_newStateDef_pretrained_05"
+            # old reach-avoid
+            load_dict = {"ctrl": 4_100_000, "dstb": 7_520_000}
+        elif version == 2.1:
+            # old binary
+            training_dir = "train_result/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained/spirit_isaacs_binary_f5_softmax_newStateDef_pretrained_05"
+            load_dict = {"ctrl": 7_580_000, "dstb": 8_000_001}
+        elif version == 3:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_05"
+            # new reach-avoid (chiara)
+            load_dict = {"ctrl": 5_900_000, "dstb": 8_000_001}
+        elif version == 4:
+            training_dir = "train_result/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror/spirit_isaacs_reachavoid_f5_pretrained_newStateDef2_mirror_05"
+            # mirrored dstb reach-avoid
+            load_dict = {"ctrl": 4_700_000, "dstb": 8_000_001}
+        elif version == 5:
+            training_dir = "train_result/test_spirit_refactor/test_isaacs_2"
+            load_dict = {"ctrl": 7_500_000, "dstb": 12_000_001}
         else:
-            config_file = "train_result/test_spirit_refactor/test_isaacs_2/config.yaml"
-            cfg = OmegaConf.load(config_file)
-            self.policy = ISAACS(cfg.solver, cfg.arch, cfg.environment.seed)
-            dstb_step, model_path = get_model_index(cfg.solver.out_folder,
-                                                    cfg.eval.model_type[1],
-                                                    cfg.eval.step[1],
-                                                    type="dstb",
-                                                    autocutoff=0.9)
+            raise NotImplementedError
 
-            ctrl_step, model_path = get_model_index(cfg.solver.out_folder,
-                                                    cfg.eval.model_type[0],
-                                                    cfg.eval.step[0],
-                                                    type="ctrl",
-                                                    autocutoff=0.9)
+        model_path = os.path.join(parent_dir, training_dir, "model")
+        model_config_path = os.path.join(parent_dir, training_dir,
+                                         "config.yaml")
 
-            self.policy.ctrl.restore(ctrl_step, model_path)
-            self.policy.dstb.restore(dstb_step, model_path)
-            self.policy.critic.restore(ctrl_step, model_path)
+        config_file = os.path.join(parent_dir, model_config_path)
 
-            self.critic = self.policy.critic.net
-            self.dstb = self.policy.dstb.net
-            self.ctrl = self.policy.ctrl.net
+        if not os.path.exists(config_file):
+            raise ValueError(
+                "Cannot find config file for the model, terminated")
+
+        config = load_config(config_file)
+        config_arch = config['arch']
+        config_update = config['update']
+
+        self.policy = SAC_adv(config_update, config_arch)
+        self.policy.build_network(verbose=True)
+        print("Loading frozen weights of model at {} with load_dict {}".format(
+            model_path, load_dict))
+
+        if version < 5:
+            self.policy.restore(None, model_path, load_dict=load_dict)
+        else:
+            self.policy.restore_refactor(None, model_path, load_dict=load_dict)
+        print("-> Done")
+
+        self.critic = self.policy.adv_critic
+        self.dstb = self.policy.dstb
+        self.ctrl = self.policy.ctrl
 
         self.is_shielded = None
         self.prev_q = None

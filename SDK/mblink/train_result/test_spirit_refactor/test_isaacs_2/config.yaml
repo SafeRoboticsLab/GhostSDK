@@ -1,33 +1,79 @@
-environment:
-  seed: 0
-  timeout: 300
-  end_criterion: failure
+# sample_naive
+arch:
+  CRITIC_HAS_ACT_IND: False
+  ACTIVATION:
+    actor: Sin
+    critic: Sin
+  APPEND_DIM: 0
+  LATENT_DIM: 0
+  DIM_LIST:
+    actor_0:
+    - 256
+    - 256
+    - 256
+    actor_1:
+    - 256
+    - 256
+    - 256
+    critic:  #! neurons for hidden layers
+    - 128
+    - 128
+    - 128
+  ACTION_RANGE: # Maximum speed: hip and abduction motors at 360 rpm, and knee motor at 245 rpm
+    - [ [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5],
+        [-0.5, 0.5]
+      ]
+    - [ [-1., 1.],
+        [-1., 1.],
+        [-1., 1.],
+        [-0.1, 0.1],
+        [-0.1, 0.1],
+        [-0.05, 0.05],
+      ]
+  ACTION_DIM: [12, 6]  # the number of joints
+  OBS_DIM: 
+    actor_0: 32
+    actor_1: 32
+    critic: 32
 
-agent:
-  agent_id: ego
-  dyn: SpiritPybullet
-  footprint: none
-  verbose: false
-  gui: false
-  gui_imaginary: false
-  dt: 0.02
-  apply_force: false # warning, currently this will also affect adversarial force
-  replace_adv_with_dr: false # if true, this will replace the adversarial force with dr force
-  force: 50
-  force_scale: 1.0
-  force_reset_time: 50
-  force_info:
-  link_name: 
-  rotate_reset: true
-  height_reset: both
-  force_random: true
-  terrain: normal
-  terrain_height: 0.1
-  terrain_gridsize: 0.2
-  terrain_friction: 1.0
-  envtype: normal
-  action_range: 
-    ctrl: &ctrl_range
+environment:
+  SEED: 0
+  NUM_AGENTS: 2
+  TIMEOUT: 300
+  END_CRITERION: failure
+
+solver:
+  USE_WANDB: True
+  PROJECT_NAME: spirit-rl-pybullet
+  NAME: debug-isaacs_2
+  OUT_FOLDER: train_result/test_spirit_refactor/test_isaacs_2
+  CHECK_OPT_FREQ: 20
+  SAVE_TOP_K: [50, 5]
+  # train
+  NUM_CPUS: 1
+  MAX_STEPS: 8_000_000
+  MEMORY_CAPACITY: 1_000_000
+  MIN_STEPS_B4_OPT: 100_000
+  OPTIMIZE_FREQ: 10_000
+  UPDATE_PER_OPT: [2_000, 1_000]
+  CTRL_OPT_FREQ: 10
+  MIN_STEPS_B4_EXPLOIT: 0 # set to 0 because we have pretrained models
+  # eval
+  NUM_EVAL_TRAJ: 20
+  EVAL_TIMEOUT: 300
+  NUM_ENVS: 1
+  WARMUP_ACTION_RANGE:
+    CTRL: 
       - [-0.5, 0.5]
       - [-0.5, 0.5]
       - [-0.5, 0.5]
@@ -40,155 +86,107 @@ agent:
       - [-0.5, 0.5]
       - [-0.5, 0.5]
       - [-0.5, 0.5]
-    dstb: &dstb_range
+    DSTB:
       - [-1., 1.]
       - [-1., 1.]
       - [-1., 1.]
       - [-0.1, 0.1]
       - [-0.1, 0.1]
       - [-0.05, 0.05]
-  obs_dim: 32
-  obsrv_list:  &obsrv_list
-    ctrl: null
-    dstb: null
-  reset_criterion: failure
+  ROLLOUT_END_CRITERION: reach-avoid
+  VENV_DEVICE: cpu
+  HISTORY_WEIGHT: 0.
+  DSTB_SAMPLE_TYPE: softmax  # recent: uses the newest one; strongest: uses the strongest history
+  INIT_DSTB_SAMPLE_TYPE: strongest
+  DSTB_SAMPLE_CUR_WEIGHT: 0.5  # only useful for "softmax", how many weights for the recent, and the history shares (1-weight)
+  CHECK_NOM: False
 
-solver:
-  device: cpu
-  rollout_env_device: cpu
-  num_envs: 1
-  num_actors: 2
-  num_critics: 1
-  # == hyperparameters of learning ==
-  max_steps: 12_000_000
-  opt_period: 10_000
-  num_updates_per_opt: 1_000
-  eval_period: 100_000
-  min_steps_b4_opt: 100_000
-  warmup_steps: 100_000
-  batch_size: 256
-  ctrl_update_ratio: 2
-  warmup_action_range:
-    ctrl: *ctrl_range
-    dstb: *dstb_range
-  memory_capacity: 200_000
-  softmax_rationality: 3.0
-  # == logging ==
-  use_wandb: true
-  project_name: spirit-rl-pybullet
-  name: debug-isaacs_2
-  max_model: 20
-  save_top_k:
-    ctrl: 10
-    dstb: 10
-  out_folder: train_result/test_spirit_refactor/test_isaacs_2
-  eval:   
-    b4_learn: true
-    metric: reach-avoid
-    aux_metric: [ep_length, safety]
-    num_trajectories: 20
-    timeout: 300
-    end_criterion: reach-avoid
-  obs_dim: 32
-  obsrv_list:  *obsrv_list
-  rollout_end_criterion: reach-avoid
-  # == hyperparameters of actors and critics ==
-  critic_0:
-    eval: false
-    net_name: central
-    lr: 0.0001
-    lr_schedule: false
-    lr_end: 0.0001
-    lr_period: 50000
-    lr_decay: 0.9
-    gamma: 0.9
-    gamma_decay: 0.1
-    gamma_end: 0.999
-    gamma_period: 2_000_000
-    gamma_schedule: true
-    tau: 0.01
-    mode: reach-avoid
-    terminal_type: all  # use min{l_x, g_x} for terminal states/obsrvs.
-    opt_type: AdamW
-    update_target_period: 2
-  actor_0:
-    eval: false
-    net_name: ctrl
-    actor_type: max
-    learn_alpha: true
-    lr: 0.0001
-    lr_al: 0.0005
-    lr_schedule: false
-    lr_al_schedule: false
-    alpha: 0.1
-    min_alpha: 0.01
-    opt_type: AdamW
-    update_period: 2
-    lr_end: 0.0001
-    lr_al_end: 0.00005
-    lr_period: 50000
-    lr_al_period: 100000
-    lr_decay: 0.9    
-    lr_al_decay: 0.9
-  actor_1:
-    eval: false
-    net_name: dstb
-    actor_type: min
-    learn_alpha: true
-    lr: 0.0001
-    lr_al: 0.0001
-    lr_schedule: false
-    lr_al_schedule: false
-    alpha: 0.1
-    min_alpha: 0.01
-    opt_type: AdamW
-    update_period: 2
-    lr_end: 0.0001
-    lr_al_end: 0.00005
-    lr_period: 50000
-    lr_al_period: 100000
-    lr_decay: 0.9    
-    lr_al_decay: 0.9
+agent:
+  DYN: SpiritPybullet
+  FOOTPRINT: None
+  VERBOSE: False
+  GUI: False
+  GUI_IMAGINARY: False
+  DT: 0.02 # used to be 0.008
+  APPLY_FORCE: True # warning, currently this will also affect adversarial force
+  REPLACE_ADV_WITH_DR: False # If True, this will replace the adversarial force with DR force
+  FORCE: 5
+  FORCE_SCALE: 1.0 # scale the FORCE variable without affecting the folder name
+  FORCE_RESET_TIME: 200
+  FORCE_INFO:
+  LINK_NAME: 
+  ROTATE_RESET: True
+  HEIGHT_RESET: both # drop (drop from air), stand (stand from ground), both
+  FORCE_RANDOM: True
+  TERRAIN: normal
+  TERRAIN_HEIGHT: 0.1
+  TERRAIN_GRIDSIZE: 0.2 # legacy value 0.2
+  TERRAIN_FRICTION: 1.0
+  ENVTYPE: normal
+  ACTION_RANGE:
+    CTRL:
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+      - [-0.5, 0.5]
+    DSTB:
+      - [-1., 1.]
+      - [-1., 1.]
+      - [-1., 1.]
+      - [-0.1, 0.1]
+      - [-0.1, 0.1]
+      - [-0.05, 0.05]
+  NUM_SEGMENT: 1 # not use, dummy info for Agent class
+  AGENT_ID: ego
+  PRETRAIN_CTRL: 
+  PRETRAIN_DSTB: 
+  RESET_CRITERION: failure
 
-arch:
-  actor_0:
-    mlp_dim:
-      - 256
-      - 256
-      - 256
-    activation: Sin
-    append_dim: 0
-    latent_dim: 0
-    obsrv_dim: 32
-    action_dim: 12
-    action_range: *ctrl_range
-    pretrained_path:
-  actor_1:
-    mlp_dim:
-      - 256
-      - 256
-      - 256
-    activation: Sin
-    append_dim: 0
-    latent_dim: 0
-    obsrv_dim: 32
-    action_dim: 6
-    action_range: *dstb_range
-    pretrained_path:
-  critic_0:
-    mlp_dim:
-      - 128
-      - 128
-      - 128
-    activation: Sin
-    append_dim: 0
-    latent_dim: 0
-    obsrv_dim: 32
-    action_dim: 18
-    pretrained_path:
+update:
+  MAX_MODEL: 50
+  ALPHA: [0.1, 0.1]
+  LEARN_ALPHA: True
+  BATCH_SIZE: 256
+  DEVICE: cpu
+  OPT_TYPE: AdamW
+  GAMMA: 0.9
+  GAMMA_DECAY: 0.1
+  GAMMA_END: 0.999
+  GAMMA_PERIOD: 1_000_000
+  GAMMA_SCHEDULE: True
+  LATENT_DIM: 0
+  LR_A: 0.0001
+  LR_C: 0.0001
+  LR_Al: [0.000125, 0.0000125]
+  LR_A_END: 0.0001
+  LR_C_END: 0.0001
+  LR_Al_END: 0.00005
+  LR_A_PERIOD: 50000
+  LR_C_PERIOD: 50000
+  LR_Al_PERIOD: 100000
+  LR_A_DECAY: 0.9
+  LR_C_DECAY: 0.9
+  LR_Al_DECAY: 0.9
+  LR_A_SCHEDULE: False
+  LR_C_SCHEDULE: False
+  LR_Al_SCHEDULE: False
+  MODE: reach-avoid
+  TAU: 0.01
+  TERMINAL_TYPE: max
+  EVAL: False
+  UPDATE_PERIOD: [2, 2] # of the actor
+  ACTOR_TYPE: [min, max]
 
 eval:
-  model_type: [manual, manual] # [ctrl, dstb], highest, safest, worst, manual
-  step: [7_500_000, 12_000_001] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
-  eval_timeout: 1000 # how long do we evaluate in real rollout env
-  imaginary_horizon: 300 # the horizon of the imaginary env
+  MODEL_TYPE: [manual, manual] # [ctrl, dstb], highest, safest, worst, manual
+  STEP: [7_500_000, 12_000_001] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
+  EVAL_TIMEOUT: 1000 # how long do we evaluate in real rollout env
+  IMAGINARY_HORIZON: 300 # the horizon of the imaginary env
