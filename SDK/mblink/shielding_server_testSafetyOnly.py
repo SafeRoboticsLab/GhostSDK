@@ -12,20 +12,30 @@ import select
 import pickle
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-model_id = "ISAACS_margin" # ISAACS_margin, ISAACS_penalty, naive_margin, naive_penalty
+# fallback, isaacs_ra, isaacs_avoid, rarl, arl_reward, rl_reward, task, target
 
-if model_id == "ISAACS_margin":
-    # ISAACS margin (mirrored)
+model_id = "isaacs_ra"
+
+if model_id == "fallback":
+    # switch between ISAACS RA margin (mirrored) and pi_target
     safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=4)
-elif model_id == "ISAACS_penalty":
+elif model_id == "isaacs_ra":
+    # ISAACS RA margin (mirrored)
+    safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=4)
+elif model_id == "isaacs_avoid":
+    # ISAACS avoidonly margin
+    safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=1) # or version=0, idk
+elif model_id == "arl_reward":
     # ISAACS penalty
     safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=2.1)
-elif model_id == "naive_penalty":
+elif model_id == "rl_reward":
     # naive with penalty
     safetyEnforcer = NaiveSafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=0)
-elif model_id == "naive_margin":
+elif model_id == "rarl":
     # naive with margin
     safetyEnforcer = NaiveSafetyEnforcer(parent_dir=os.getcwd(), epsilon=-np.inf, version=1)
+elif model_id == "task" or model_id == "target":
+    safetyEnforcer = None
 else:
     raise NotImplementedError
 
@@ -281,7 +291,7 @@ while True:
         if ready_vicon[0]:
             vicon_struct = clients["vicon"].recv(1024)
             try:
-                vicon_data = struct.unpack("!7f", vicon_struct[-28:])
+                vicon_data = struct.unpack("!9f", vicon_struct[-36:])
                 # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
                 state[0] = vicon_data[0] # x
                 state[1] = vicon_data[1] # y
@@ -322,13 +332,15 @@ while True:
         
         if time.time() - cur_time > dt:
             if data == "0" or data == "5":
-                # action = stable_stance
-                action = np.array([
-                    0.75, 0.1, 1.45, 
-                    0.6, 0.4, 1.9, 
-                    0.75, -0.1, 1.45, 
-                    0.6, -0.4, 1.9
-                ])
+                if model_id == "target":
+                    action = np.array([
+                        0.75, 0.1, 1.45, 
+                        0.6, 0.4, 1.9, 
+                        0.75, -0.1, 1.45, 
+                        0.6, -0.4, 1.9
+                    ])
+                else:
+                    action = stable_stance
             else:
                 if data == "8":
                     # action = controller_forward_slow.get_action().reshape((4, 3))
@@ -367,7 +379,10 @@ while True:
                         elif data == "6s":
                             action = controller_lateral_right.get_action()
                         ctrl = action - spirit_joint_pos
-                        ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
+                        if model_id == "fallback":
+                            ctrl = safetyEnforcer.get_safety_action(state, threshold=0.0) # THIS IS JOINT POS INCREMENT
+                        else:
+                            ctrl = safetyEnforcer.get_action(state, ctrl) # THIS IS JOINT POS INCREMENT
                         print(safetyEnforcer.prev_q)
 
                         action = action_transform(ctrl, spirit_joint_pos, clipped=True)
@@ -380,13 +395,15 @@ while True:
                         action = action.reshape(-1)
                 except Exception as e:
                     print(e)
-                    # action = stable_stance
-                    action = np.array([
-                        0.75, 0.1, 1.45, 
-                        0.6, 0.4, 1.9, 
-                        0.75, -0.1, 1.45, 
-                        0.6, -0.4, 1.9
-                    ])
+                    if model_id == "target":
+                        action = np.array([
+                            0.75, 0.1, 1.45, 
+                            0.6, 0.4, 1.9, 
+                            0.75, -0.1, 1.45, 
+                            0.6, -0.4, 1.9
+                        ])
+                    else:
+                        action = stable_stance
             cur_time = time.time()
 
         limbCmd(action)
@@ -394,9 +411,13 @@ while True:
         timestamp.append(cur_time)
         state_array.append(state.copy())
         action_array.append(action)
-        shielding_status.append(safetyEnforcer.is_shielded)
+        if model_id == "task" or model_id == "target":
+            shielding_status.append(False)
+            q_array.append(0.0)
+        else:
+            shielding_status.append(safetyEnforcer.is_shielded)
+            q_array.append(safetyEnforcer.prev_q)
         command_status.append(data)
-        q_array.append(safetyEnforcer.prev_q)
 
     except KeyboardInterrupt:
         sittingDown()

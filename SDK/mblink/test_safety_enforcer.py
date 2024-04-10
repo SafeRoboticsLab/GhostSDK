@@ -2,7 +2,7 @@ from safety_enforcer import SafetyEnforcer
 import numpy as np
 import time
 
-safetyEnforcer = SafetyEnforcer()
+safetyEnforcer = SafetyEnforcer(version=5)
 
 start_time = time.time()
 safetyEnforcer.get_action(np.zeros(36), np.zeros(12))
