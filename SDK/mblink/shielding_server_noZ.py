@@ -1,5 +1,3 @@
-# Auto walk from A to B
-
 import socket
 import time
 import numpy as np
@@ -11,20 +9,12 @@ import os
 import sys
 import select
 import pickle
-from scipy.spatial.transform import Rotation
 
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-# safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(),
-#                                 epsilon=-0.4,
-#                                 version=5)
-
 safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(),
-                                epsilon=-0.3,
-                                version=6)
-
-goal = [3.0, 8.0]
-goal_radius = 0.8  # terminate when close enough
+                                epsilon=-np.inf,
+                                version=5)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -34,7 +24,6 @@ thread_count = 0
 
 control_node_on = False
 serial_node_on = False
-vicon_node_on = False
 clients = dict()
 
 try:
@@ -45,7 +34,7 @@ except socket.error as e:
 print('Socket is listening..')
 server_socket.listen(5)
 
-while not control_node_on or not serial_node_on or not vicon_node_on:
+while not control_node_on or not serial_node_on:
     client, address = server_socket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     client_type = client.recv(1024)
@@ -53,10 +42,6 @@ while not control_node_on or not serial_node_on or not vicon_node_on:
         print("Control Node attached")
         clients["control"] = client
         control_node_on = True
-    elif client_type.decode('utf-8') == "Vicon":
-        print("Vicon Node attached")
-        clients["vicon"] = client
-        vicon_node_on = True
     elif client_type.decode('utf-8') == "Serial":
         print("Serial Node attached")
         clients["serial"] = client
@@ -209,8 +194,6 @@ current_stance = np.zeros(12)
 try:
     cur_time = time.time()
     dt = 1. / 250.
-    controller = InverseKinematicsController(
-        dt=dt, L=1.0, T=0.12)  # use for auto walking, change Lrot to turn
     controller_forward = InverseKinematicsController(dt=dt, L=1.0, T=0.08)
     controller_forward_slow = InverseKinematicsController(dt=dt, L=1.0, T=0.15)
     controller_forward_left = InverseKinematicsController(dt=dt,
@@ -263,7 +246,6 @@ except KeyboardInterrupt:
     mb.rxstop()
 
 state = np.zeros(36)
-quat = [0, 0, 0, 0]
 
 timestamp = []
 state_array = []
@@ -272,23 +254,7 @@ shielding_status = []
 command_status = []
 q_array = []
 
-received_vicon = False
 received_serial = False
-
-
-def map_rad_range(angle):
-    return ((angle + np.pi) % (2 * np.pi)) - np.pi
-
-
-def calculate_angle(point_a, point_b):
-    vector_ab = np.array(point_b) - np.array(point_a)
-    angle_rad = map_rad_range(
-        np.arctan2(vector_ab[1], vector_ab[0]) + np.pi / 2)
-    angle_deg = np.degrees(angle_rad)
-    return angle_rad, angle_deg
-
-
-target_reached = False
 
 while True:
     try:
@@ -298,28 +264,10 @@ while True:
             data = control_data.decode("utf-8")
             # print(data)
 
-        ready_vicon = select.select([clients["vicon"]], [], [], 0.01)
-        if ready_vicon[0]:
-            vicon_struct = clients["vicon"].recv(1024)
-            try:
-                vicon_data = struct.unpack("!9f", vicon_struct[-36:])
-                # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
-                state[0] = vicon_data[0]  # x
-                state[1] = vicon_data[1]  # y
-                state[2] = vicon_data[2]  # z
-                quat = vicon_data[3:7]
-                goal = vicon_data[7:]
-
-                received_vicon = True
-            except Exception as e:
-                print("Vicon:", e)
-                pass
-
         ready_serial = select.select([clients["serial"]], [], [], 0.01)
         if ready_serial[0]:
             serial_struct = clients["serial"].recv(1024)
             try:
-                # print(len(serial_struct))
                 serial_data = struct.unpack("!33f", serial_struct[-132:])
                 # print(serial_data)
                 # print("Serial: {:.3f}, {:.3f}, {:.3f}".format(serial_data[0], serial_data[1], serial_data[2]))
@@ -346,120 +294,72 @@ while True:
                 print("Serial:", e)
                 pass
 
-        if not target_reached:
-            if time.time() - cur_time > dt:
-                if data == "0" or data == "5":
-                    action = stable_stance
-                else:
-                    if data == "8":
-                        action = controller_forward.get_action().reshape(
-                            (4, 3))
-                    elif data == "9":
-                        action = controller_forward_right.get_action().reshape(
-                            (4, 3))
-                    elif data == "7":
-                        action = controller_forward_left.get_action().reshape(
-                            (4, 3))
-                    elif data == "2":
-                        action = controller_backward.get_action().reshape(
-                            (4, 3))
-                    elif data == "1":
-                        action = controller_backward_left.get_action().reshape(
-                            (4, 3))
-                    elif data == "3":
-                        action = controller_backward_right.get_action(
-                        ).reshape((4, 3))
-                    elif data == "4":
-                        action = controller_lateral_left.get_action().reshape(
-                            (4, 3))
-                    elif data == "6":
-                        action = controller_lateral_right.get_action().reshape(
-                            (4, 3))
-                    elif data == "a":  # auto walk to goal
-                        # calculate turn from heading angle
-                        if received_serial and received_vicon:
-                            euler_angles = Rotation.from_quat(quat).as_euler(
-                                'xyz')
-                            angle_rad, angle_deg = calculate_angle(
-                                state[:2], goal)
-                            Lrot = np.clip(
-                                map_rad_range(euler_angles[2] - angle_rad +
-                                              np.pi), -0.8, 0.8)
-                            controller.Lrot = Lrot
-                            distance = np.linalg.norm(
-                                np.array(state[:2]) - np.array(goal), 2)
-                            if distance > goal_radius:
-                                action = controller.get_action().reshape(
-                                    (4, 3))
-                            else:
-                                action = stable_stance
-                    elif "s" in data:
-                        if received_serial and received_vicon:
-                            spirit_joint_pos = state[12:24]
-                            if data == "8s":
-                                action = controller_forward.get_action()
-                            elif data == "9s":
-                                action = controller_forward_right.get_action()
-                            elif data == "7s":
-                                action = controller_forward_left.get_action()
-                            elif data == "2s":
-                                action = controller_backward.get_action()
-                            elif data == "1s":
-                                action = controller_backward_left.get_action()
-                            elif data == "3s":
-                                action = controller_backward_right.get_action()
-                            elif data == "4s":
-                                action = controller_lateral_left.get_action()
-                            elif data == "6s":
-                                action = controller_lateral_right.get_action()
-                            elif data == "as":  # auto walk to goal, with shield
-                                euler_angles = Rotation.from_quat(
-                                    quat).as_euler('xyz')
-                                angle_rad, angle_deg = calculate_angle(
-                                    state[:2], goal)
-                                Lrot = np.clip(
-                                    map_rad_range(euler_angles[2] - angle_rad +
-                                                  np.pi), -0.8, 0.8)
-                                controller.Lrot = Lrot
-                                distance = np.linalg.norm(
-                                    np.array(state[:2]) - np.array(goal), 2)
-                                if distance > goal_radius:
-                                    action = controller.get_action()
-                                else:
-                                    action = spirit_joint_pos
-                                    target_reached = True
-                            ctrl = action - spirit_joint_pos
-                            # ctrl = safetyEnforcer.get_action(
-                            #     state, ctrl)  # THIS IS JOINT POS INCREMENT
-                            if safetyEnforcer.version >= 5:
-                                if safetyEnforcer.get_q(
-                                        state, ctrl) < safetyEnforcer.epsilon:
-                                    ctrl = safetyEnforcer.get_safety_action(
-                                        state)
-                            else:
-                                if safetyEnforcer.get_q(
-                                        state, ctrl) > safetyEnforcer.epsilon:
-                                    ctrl = safetyEnforcer.get_safety_action(
-                                        state)
-                            print(safetyEnforcer.prev_q)
-
-                            action = action_transform(ctrl,
-                                                      spirit_joint_pos,
-                                                      clipped=True)
-
-                            received_vicon = False
-                            received_serial = False
-                    try:
-                        if action.ndim > 1:
-                            action[:, [0, 1]] = action[:, [1, 0]]
-                            action = action.reshape(-1)
-                    except:
-                        action = stable_stance
-                cur_time = time.time()
-        else:
+        if time.time() - cur_time > dt:
             if data == "0" or data == "5":
-                target_reached = False
-            action = stable_stance
+                action = stable_stance
+            else:
+                if data == "8":
+                    # action = controller_forward_slow.get_action().reshape((4, 3))
+                    action = controller_forward.get_action().reshape((4, 3))
+                elif data == "9":
+                    action = controller_forward_right.get_action().reshape(
+                        (4, 3))
+                elif data == "7":
+                    action = controller_forward_left.get_action().reshape(
+                        (4, 3))
+                elif data == "2":
+                    action = controller_backward.get_action().reshape((4, 3))
+                elif data == "1":
+                    action = controller_backward_left.get_action().reshape(
+                        (4, 3))
+                elif data == "3":
+                    action = controller_backward_right.get_action().reshape(
+                        (4, 3))
+                elif data == "4":
+                    action = controller_lateral_left.get_action().reshape(
+                        (4, 3))
+                elif data == "6":
+                    action = controller_lateral_right.get_action().reshape(
+                        (4, 3))
+                elif "s" in data:
+                    if received_serial:
+                        spirit_joint_pos = state[12:24]
+                        if data == "8s":
+                            action = controller_forward.get_action()
+                        elif data == "9s":
+                            action = controller_forward_right.get_action()
+                        elif data == "7s":
+                            action = controller_forward_left.get_action()
+                        elif data == "2s":
+                            action = controller_backward.get_action()
+                        elif data == "1s":
+                            action = controller_backward_left.get_action()
+                        elif data == "3s":
+                            action = controller_backward_right.get_action()
+                        elif data == "4s":
+                            action = controller_lateral_left.get_action()
+                        elif data == "6s":
+                            action = controller_lateral_right.get_action()
+                        ctrl = action - spirit_joint_pos
+                        ctrl = safetyEnforcer.get_action(
+                            state, ctrl)  # THIS IS JOINT POS INCREMENT
+                        if safetyEnforcer.is_shielded:
+                            ctrl = safetyEnforcer.get_safety_action(
+                                state, threshold=0.1)
+                        print(safetyEnforcer.prev_q)
+
+                        action = action_transform(ctrl,
+                                                  spirit_joint_pos,
+                                                  clipped=True)
+
+                        received_serial = False
+                try:
+                    if action.ndim > 1:
+                        action[:, [0, 1]] = action[:, [1, 0]]
+                        action = action.reshape(-1)
+                except:
+                    action = stable_stance
+            cur_time = time.time()
 
         limbCmd(action)
 
