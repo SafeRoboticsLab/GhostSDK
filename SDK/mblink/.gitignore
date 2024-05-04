@@ -3,3 +3,4 @@ syntax: glob
 
 build*/**
 __pycache__/
+RARL/__pycache__/
