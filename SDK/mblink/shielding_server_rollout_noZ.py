@@ -12,7 +12,11 @@ import pickle
 
 timestr = time.strftime("%Y%m%d%H%M%S")
 
-safetyEnforcer = SafetyEnforcer(parent_dir=os.getcwd(), epsilon=0.5)
+safetyEnforcer = SafetyEnforcer(
+    parent_dir=os.getcwd(),
+    epsilon=-0.28,
+    # epsilon=np.inf,
+    version=7)
 
 server_socket = socket.socket()
 server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -22,7 +26,6 @@ thread_count = 0
 
 control_node_on = False
 serial_node_on = False
-vicon_node_on = False
 gameplay_node_on = False
 clients = dict()
 
@@ -34,7 +37,7 @@ except socket.error as e:
 print('Socket is listening..')
 server_socket.listen(5)
 
-while not control_node_on or not serial_node_on or not vicon_node_on or not gameplay_node_on:
+while not control_node_on or not serial_node_on or not gameplay_node_on:
     client, address = server_socket.accept()
     print('Connected to: ' + address[0] + ':' + str(address[1]))
     client_type = client.recv(1024)
@@ -42,10 +45,6 @@ while not control_node_on or not serial_node_on or not vicon_node_on or not game
         print("Control Node attached")
         clients["control"] = client
         control_node_on = True
-    elif client_type.decode('utf-8') == "Vicon":
-        print("Vicon Node attached")
-        clients["vicon"] = client
-        vicon_node_on = True
     elif client_type.decode('utf-8') == "Serial":
         print("Serial Node attached")
         clients["serial"] = client
@@ -262,7 +261,6 @@ shielding_status = []
 command_status = []
 q_array = []
 
-received_vicon = False
 received_serial = False
 
 g_x = np.inf
@@ -278,21 +276,6 @@ while True:
             control_data = clients["control"].recv(1024)
             data = control_data.decode("utf-8")
             # print(data)
-
-        ready_vicon = select.select([clients["vicon"]], [], [], 0.01)
-        if ready_vicon[0]:
-            vicon_struct = clients["vicon"].recv(1024)
-            try:
-                vicon_data = struct.unpack("!9f", vicon_struct[-36:])
-                # print("Vicon: {:.3f}, {:.3f}, {:.3f}".format(vicon_data[0], vicon_data[1], vicon_data[2]))
-                state[0] = vicon_data[0]  # x
-                state[1] = vicon_data[1]  # y
-                state[2] = vicon_data[2]  # z
-
-                received_vicon = True
-            except Exception as e:
-                print("Vicon:", e)
-                pass
 
         ready_serial = select.select([clients["serial"]], [], [], 0.01)
         if ready_serial[0]:
@@ -352,7 +335,7 @@ while True:
                     action = controller_lateral_right.get_action().reshape(
                         (4, 3))
                 elif "s" in data:
-                    if received_serial and received_vicon:  # blocking
+                    if received_serial:  # blocking
                         # if True: # nonblocking, run with whatever state data
                         # 33D
                         # _s = np.concatenate((state[2:8], state[9:]), axis=0)
@@ -447,7 +430,6 @@ while True:
                                                   spirit_joint_pos,
                                                   clipped=True)
 
-                        received_vicon = False
                         received_serial = False
                 try:
                     if action.ndim > 1:

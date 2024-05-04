@@ -20,7 +20,7 @@ agent:
   link_name: 
   rotate_reset: true
   height_reset: both
-  force_random: true
+  force_type: uniform
   terrain: normal
   terrain_height: 0.1
   terrain_gridsize: 0.2
@@ -47,6 +47,20 @@ agent:
       - [-0.1, 0.1]
       - [-0.1, 0.1]
       - [-0.05, 0.05]
+  target_margin:
+    - corner_height
+    - toe_height
+    - body_ang_x
+    - body_ang_y
+    - body_ang_z
+    - x_dot
+    - y_dot
+    - z_dot
+  safety_margin:
+    - corner_height
+    - elbow_height
+  action_type: increment
+  action_center:
   obs_dim: 32
   obsrv_list:  &obsrv_list
     ctrl: null
@@ -76,12 +90,12 @@ solver:
   # == logging ==
   use_wandb: true
   project_name: spirit-rl-pybullet
-  name: debug-isaacs_2
+  name: debug-isaacs_3
   max_model: 20
   save_top_k:
     ctrl: 10
     dstb: 10
-  out_folder: train_result/test_spirit_refactor/test_isaacs_2
+  out_folder: train_result/test_spirit_refactor/test_isaacs_3
   eval:   
     b4_learn: true
     metric: reach-avoid
@@ -121,7 +135,7 @@ solver:
     lr_schedule: false
     lr_al_schedule: false
     alpha: 0.1
-    min_alpha: 0.01
+    min_alpha: 0.001
     opt_type: AdamW
     update_period: 2
     lr_end: 0.0001
@@ -140,7 +154,7 @@ solver:
     lr_schedule: false
     lr_al_schedule: false
     alpha: 0.1
-    min_alpha: 0.01
+    min_alpha: 0.001
     opt_type: AdamW
     update_period: 2
     lr_end: 0.0001
@@ -162,7 +176,7 @@ arch:
     obsrv_dim: 32
     action_dim: 12
     action_range: *ctrl_range
-    pretrained_path:
+    pretrained_path: 
   actor_1:
     mlp_dim:
       - 256
@@ -174,7 +188,7 @@ arch:
     obsrv_dim: 32
     action_dim: 6
     action_range: *dstb_range
-    pretrained_path:
+    pretrained_path: 
   critic_0:
     mlp_dim:
       - 128
@@ -185,11 +199,10 @@ arch:
     latent_dim: 0
     obsrv_dim: 32
     action_dim: 18
-    pretrained_path:
+    pretrained_path: 
 
 eval:
-  model_type: [manual, manual] # [ctrl, dstb], highest, safest, worst, manual
-  # step: [7_500_000, 9_400_000] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
-  step: [8_800_000, 9_400_000] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
+  model_type: [manual, highest] # [ctrl, dstb], highest, safest, worst, manual
+  step: [10_400_000, 0] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
   eval_timeout: 1000 # how long do we evaluate in real rollout env
   imaginary_horizon: 300 # the horizon of the imaginary env

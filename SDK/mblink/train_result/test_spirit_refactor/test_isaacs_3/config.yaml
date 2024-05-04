@@ -55,8 +55,8 @@ environment:
 solver:
   USE_WANDB: True
   PROJECT_NAME: spirit-rl-pybullet
-  NAME: debug-isaacs_2
-  OUT_FOLDER: train_result/test_spirit_refactor/test_isaacs_2
+  NAME: debug-isaacs_3
+  OUT_FOLDER: train_result/test_spirit_refactor/test_isaacs_3
   CHECK_OPT_FREQ: 20
   SAVE_TOP_K: [50, 5]
   # train
@@ -186,8 +186,7 @@ update:
   ACTOR_TYPE: [min, max]
 
 eval:
-  MODEL_TYPE: [manual, manual] # [ctrl, dstb], highest, safest, worst, manual
-  # STEP: [7_500_000, 9_400_000] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
-  STEP: [8_800_000, 9_400_000] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
+  MODEL_TYPE: [manual, highest] # [ctrl, dstb], highest, safest, worst, manual
+  STEP: [10_400_000, 12_000_001] # [ctrl, dstb], the step to use if "manual" is chosen for MODEL_TYPE
   EVAL_TIMEOUT: 1000 # how long do we evaluate in real rollout env
   IMAGINARY_HORIZON: 300 # the horizon of the imaginary env

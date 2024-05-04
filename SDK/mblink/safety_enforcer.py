@@ -1,13 +1,10 @@
 from typing import Optional
 import numpy as np
 import os
-
 import torch
-from utils.utils import get_model_index
-
 from RARL.sac_adv import SAC_adv
 from utils.utils import load_config
-from omegaconf import OmegaConf
+from RARL.sac_mini import SAC_mini
 
 
 class SafetyEnforcer:
@@ -17,7 +14,7 @@ class SafetyEnforcer:
                  imaginary_horizon: int = 100,
                  shield_type: Optional[str] = "value",
                  parent_dir: Optional[str] = "",
-                 version=4) -> None:
+                 version=5) -> None:
         """_summary_
 
         Args:
@@ -32,6 +29,7 @@ class SafetyEnforcer:
         self.epsilon = epsilon
         self.imaginary_horizon = imaginary_horizon
         self.version = version
+        augment_dstb = False
 
         if version == 0:
             training_dir = "train_result/spirit_isaacs_avoidonly_f5_newStateDef_pretrained/spirit_isaacs_avoidonly_f5_newStateDef_pretrained_05"
@@ -59,7 +57,19 @@ class SafetyEnforcer:
             load_dict = {"ctrl": 4_700_000, "dstb": 8_000_001}
         elif version == 5:
             training_dir = "train_result/test_spirit_refactor/test_isaacs_2"
-            load_dict = {"ctrl": 7_500_000, "dstb": 12_000_001}
+            load_dict = {"ctrl": 7_500_000, "dstb": 9_400_000}
+            # load_dict = {"ctrl": 8_800_000, "dstb": 9_400_000}
+        elif version == 6:
+            # value shielding with BUST of \pi_\theta
+            training_dir = "train_result/test_spirit_refactor/test_isaacs_2"
+            load_dict = {"ctrl": 7_500_000, "dstb": 9_400_000}
+            # load_dict = {"ctrl": 8_800_000, "dstb": 9_400_000}
+            augment_dstb = True
+            augment_dir = "train_result/test_spirit_refactor/test_bust-safety-2"
+            augment_load_dict = {"dstb": 7_000_000}
+        elif version == 7:
+            training_dir = "train_result/test_spirit_refactor/test_isaacs_3"
+            load_dict = {"ctrl": 10_400_000, "dstb": 12_000_001}
         else:
             raise NotImplementedError
 
@@ -92,30 +102,65 @@ class SafetyEnforcer:
         self.dstb = self.policy.dstb
         self.ctrl = self.policy.ctrl
 
+        if augment_dstb:
+            # replace self.dstb with the augment_dstb
+            print("Use augment dstb")
+            model_path = os.path.join(parent_dir, augment_dir, "model")
+            model_config_path = os.path.join(parent_dir, augment_dir,
+                                             "config.yaml")
+
+            config_file = os.path.join(parent_dir, model_config_path)
+
+            config = load_config(config_file)
+            config_arch = config['arch']
+            config_update = config['update']
+
+            augment_policy = SAC_mini(config_update, config_arch)
+            augment_policy.build_network(verbose=False)
+            if version < 5:
+                # augment_policy.restore(None, model_path, load_dict=load_dict)
+                augment_policy.restore(augment_load_dict["dstb"], model_path)
+            else:
+                augment_policy.restore_refactor(augment_load_dict["dstb"],
+                                                model_path,
+                                                types="dstb")
+
+            self.dstb = augment_policy.actor
+
         self.is_shielded = None
         self.prev_q = None
 
     def get_action(self, state: np.ndarray, action: np.ndarray) -> np.ndarray:
-        if self.version == 5:
+        if self.version >= 5:
             state = np.concatenate((state[3:8], state[9:]), axis=0)
         elif self.version >= 3:
             # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
             state = np.concatenate((state[2:8], state[9:]), axis=0)
-        if self.version == 5:
+
+        if self.version >= 5:
             s_dstb = np.copy(state)
         else:
             s_dstb = np.concatenate((state, action), axis=0)
+
         dstb = self.dstb(s_dstb)
 
         critic_q = max(
             self.critic(torch.FloatTensor(state), torch.FloatTensor(action),
-                        torch.FloatTensor(dstb)))
+                        torch.FloatTensor(dstb))).detach().numpy()
 
-        if critic_q > self.epsilon:
-            action = self.ctrl(state)
-            self.is_shielded = True
+        if self.version >= 5:
+            # positive is good
+            if critic_q < self.epsilon:
+                action = self.ctrl(state)
+                self.is_shielded = True
+            else:
+                self.is_shielded = False
         else:
-            self.is_shielded = False
+            if critic_q > self.epsilon:
+                action = self.ctrl(state)
+                self.is_shielded = True
+            else:
+                self.is_shielded = False
 
         self.prev_q = critic_q.reshape(-1)[0]
 
@@ -123,25 +168,28 @@ class SafetyEnforcer:
 
     def get_q(self, state: np.ndarray, action: np.ndarray):
         if state is not None and action is not None:
-            if self.version == 5:
+            if self.version >= 5:
                 state = np.concatenate((state[3:8], state[9:]), axis=0)
             elif self.version >= 3:
                 state = np.concatenate((state[2:8], state[9:]), axis=0)
-            if self.version == 5:
+            if self.version >= 5:
                 s_dstb = np.copy(state)
             else:
                 s_dstb = np.concatenate((state, action), axis=0)
             dstb = self.dstb(s_dstb)
 
-            critic_q = max(self.critic(state, action, dstb))
+            critic_q = max(
+                self.critic(torch.FloatTensor(state),
+                            torch.FloatTensor(action),
+                            torch.FloatTensor(dstb))).detach().numpy()
 
-            return critic_q.reshape(-1)[0]
-        else:
-            return self.prev_q
+            self.prev_q = critic_q.reshape(-1)[0]
+
+        return self.prev_q
 
     def target_margin(self, state):
-        """ (36) and 33D state
-            (x, y), z, 
+        """ (36) and 33D state, 32D state omits z
+            (x, y), z,
             x_dot, y_dot, z_dot,
             roll, pitch, (yaw)
             w_x, w_y, w_z,
@@ -150,33 +198,33 @@ class SafetyEnforcer:
         """
         # this is not the correct target margin, missing corner pos and toe pos, replacing corner pos with height, assuming that toes always touch ground
         # l(x) < 0 --> x \in T
-        if self.version >= 3:
+        if self.version >= 5:
+            state = np.concatenate((state[3:8], state[9:]), axis=0)
+            # spirit_joint_pos = state[9:21]
+            return {"roll": 0.2 - abs(state[4]), "pitch": 0.2 - abs(state[5])}
+        elif self.version >= 3:
             # change from 36D to 33D (ignore x, y, yaw: 0, 1, 8 index)
             if len(state) == 36:
-                if self.version == 5:
-                    state = np.concatenate((state[3:8], state[9:]), axis=0)
-                else:
-                    state = np.concatenate((state[2:8], state[9:]), axis=0)
-
-            spirit_joint_pos = state[9:21]
-            return {
-                "height": state[0] - 0.4,
-                "roll": abs(state[4]) - 0.20,
-                "pitch": abs(state[5]) - 0.20
-                # "w_x": abs(state[6]) - 0.17444,
-                # "w_y": abs(state[7]) - 0.17444,
-                # "w_z": abs(state[8]) - 0.17444,
-                # "x_dot": abs(state[1]) - 0.2,
-                # "y_dot": abs(state[2]) - 0.2,
-                # "z_dot": abs(state[3]) - 0.2
-            }
+                state = np.concatenate((state[2:8], state[9:]), axis=0)
+                # spirit_joint_pos = state[9:21]
+                return {
+                    "height": state[0] - 0.4,
+                    "roll": abs(state[4]) - 0.20,
+                    "pitch": abs(state[5]) - 0.20
+                    # "w_x": abs(state[6]) - 0.17444,
+                    # "w_y": abs(state[7]) - 0.17444,
+                    # "w_z": abs(state[8]) - 0.17444,
+                    # "x_dot": abs(state[1]) - 0.2,
+                    # "y_dot": abs(state[2]) - 0.2,
+                    # "z_dot": abs(state[3]) - 0.2
+                }
         else:
             if len(state) == 33:
                 print(
                     "ERROR: asking for 36D state when there is only 33D state")
                 return {"": np.inf}
 
-            spirit_joint_pos = state[12:24]
+            # spirit_joint_pos = state[12:24]
             return {
                 "height": state[2] - 0.4,
                 "w_x": abs(state[9]) - 0.17444,
@@ -202,25 +250,53 @@ class SafetyEnforcer:
         else:
             # switch between fallback and target stable stance, depending on the current state
             margin = self.target_margin(state)
-            lx = max(margin.values())
+            if self.version >= 5:
+                lx = min(margin.values())
+            else:
+                lx = max(margin.values())
             # print(margin, lx)
             # print(margin, "vx", abs(state[1]) - 0.2, "vy", abs(state[2]) - 0.2, "vz", abs(state[3]) - 0.2)
-            if len(state) == 33:
+            if len(state) == 32:
+                spirit_joint_pos = state[8:20]
+            elif len(state) == 33:
                 spirit_joint_pos = state[9:21]
             elif len(state) == 36:
                 spirit_joint_pos = state[12:24]
             else:
                 raise ValueError
-            if lx <= threshold:  # account for sensor noise
-                # in target set, just output stable stance
-                #! TODO: enforce stable stance instead of just outputting zero changes to the current stance
-                return np.clip(stable_stance - spirit_joint_pos,
-                               -np.ones(12) * 0.1,
-                               np.ones(12) * 0.1)
+
+            if self.version >= 5:
+                if lx > threshold:  # account for sensor noise
+                    # in target set, just output stable stance
+                    #! TODO: enforce stable stance instead of just outputting zero changes to the current stance
+                    return np.clip(stable_stance - spirit_joint_pos,
+                                   -np.ones(12) * 0.1,
+                                   np.ones(12) * 0.1)
+                else:
+                    if len(state) == 36:
+                        if self.version >= 5:
+                            state = np.concatenate((state[3:8], state[9:]),
+                                                   axis=0)
+                        else:
+                            state = np.concatenate((state[2:8], state[9:]),
+                                                   axis=0)
+                    return self.ctrl(state)
             else:
-                if len(state) == 36:
-                    state = np.concatenate((state[2:8], state[9:]), axis=0)
-                return self.ctrl(state)
+                if lx <= threshold:  # account for sensor noise
+                    # in target set, just output stable stance
+                    #! TODO: enforce stable stance instead of just outputting zero changes to the current stance
+                    return np.clip(stable_stance - spirit_joint_pos,
+                                   -np.ones(12) * 0.1,
+                                   np.ones(12) * 0.1)
+                else:
+                    if len(state) == 36:
+                        if self.version >= 5:
+                            state = np.concatenate((state[3:8], state[9:]),
+                                                   axis=0)
+                        else:
+                            state = np.concatenate((state[2:8], state[9:]),
+                                                   axis=0)
+                    return self.ctrl(state)
 
     def get_shielding_status(self):
         return self.is_shielded
